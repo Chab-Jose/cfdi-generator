@@ -18,22 +18,23 @@ class Comprobante
     public ?ComprobanteAddenda $Addenda = null;
 
     public string $Version = '4.0';
+    public float $SubTotal = 0.0;
+    public float $Total = 0.0;
+    public string $LugarExpedicion;
+    public string $Fecha;
+    public string $NoCertificado;
+    public string $Moneda;
+    public string $TipoDeComprobante;
+    
+    public ?float $Descuento;
+    public ?float $TipoCambio;
+    public string $Exportacion;
     public ?string $Serie = null;
     public ?string $Folio = null;
-    public ?string $Fecha = null;
     public ?string $Sello = null;
     public ?string $FormaPago = null;
-    public ?string $NoCertificado = null;
     public ?string $Certificado = null;
     public ?string $CondicionesDePago = null;
-    public float $SubTotal = 0.0;
-    public ?float $Descuento;
-    public ?string $Moneda = null;
-    public ?float $TipoCambio;
-    public float $Total = 0.0;
-    public ?string $TipoDeComprobante = null;
-    public ?string $Exportacion = null;
     public ?string $MetodoPago = null;
-    public ?string $LugarExpedicion = null;
     public ?string $Confirmacion = null;
 }

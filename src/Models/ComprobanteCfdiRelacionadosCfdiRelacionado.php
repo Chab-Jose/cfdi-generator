@@ -4,5 +4,5 @@ namespace ChabJose\CfdiGenerator\Models;
 
 class ComprobanteCfdiRelacionadosCfdiRelacionado
 {
-    public ?string $UUID = null;
+    public string $UUID;
 }

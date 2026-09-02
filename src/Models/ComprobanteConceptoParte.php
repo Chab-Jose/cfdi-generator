@@ -7,13 +7,14 @@ class ComprobanteConceptoParte
     /** @var ComprobanteConceptoParteInformacionAduanera[] */
     public array $InformacionAduanera = [];
 
-    public ?string $ClaveProdServ = null;
-    public ?string $NoIdentificacion = null;
+    public string $ClaveProdServ;
+    public string $Descripcion;
     public float $Cantidad = 0.0;
+
+    public ?string $NoIdentificacion = null;
     public ?string $Unidad = null;
-    public ?string $Descripcion = null;
-    public float $ValorUnitario = 0.0;
-    public float $Importe = 0.0;
+    public ?float $ValorUnitario;
+    public ?float $Importe;
 
     public function addInformacionAduanera(ComprobanteConceptoParteInformacionAduanera $informacionAduanera):self
     {

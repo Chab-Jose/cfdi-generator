@@ -7,7 +7,7 @@ class ComprobanteCfdiRelacionados
     /** @var ComprobanteCfdiRelacionadosCfdiRelacionado[] */
     public array $CfdiRelacionado = [];
 
-    public ?string $TipoRelacion = null;
+    public string $TipoRelacion;
 
     public function addCfdiRelacionado(ComprobanteCfdiRelacionadosCfdiRelacionado $cfdiRelacionado): self
     {

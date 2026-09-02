@@ -18,16 +18,17 @@ class ComprobanteConcepto
     public ?ComprobanteConceptoImpuestos $Impuestos = null;
     public ?ComprobanteConceptoACuentaTerceros $ACuentaTerceros = null;
     
-    public ?string $ClaveProdServ = null;
-    public ?string $NoIdentificacion = null;
+    public string $ClaveProdServ;
     public float $Cantidad = 0.0;
-    public ?string $ClaveUnidad = null;
-    public ?string $Unidad = null;
-    public ?string $Descripcion = null;
+    public string $ClaveUnidad;
+    public string $Descripcion;
     public float $ValorUnitario = 0.0;
     public float $Importe = 0.0;
+    public string $ObjetoImp;
+
+    public ?string $Unidad = null;
+    public ?string $NoIdentificacion = null;
     public ?float $Descuento;
-    public ?string $ObjetoImp = null;
 
     public function addConceptoCuentaPredial(ComprobanteConceptoCuentaPredial $cuentaPredial): self
     {

@@ -4,11 +4,12 @@ namespace ChabJose\CfdiGenerator\Models;
 
 class ComprobanteReceptor
 {
-    public ?string $Rfc = null;
-    public ?string $Nombre = null;
-    public ?string $DomicilioFiscalReceptor = null;
+    public string $Rfc;
+    public string $Nombre;
+    public string $DomicilioFiscalReceptor;
+    public string $RegimenFiscalReceptor;
+    public string $UsoCFDI;
+    
     public ?string $ResidenciaFiscal = null;
     public ?string $NumRegIdTrib = null;
-    public ?string $RegimenFiscalReceptor = null;
-    public ?string $UsoCFDI = null;
 }

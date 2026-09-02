@@ -4,6 +4,6 @@ namespace ChabJose\CfdiGenerator\Models;
 
 class ComprobanteImpuestosRetencion
 {
-    public ?string $Impuesto = null;
-    public float $Importe;
+    public string $Impuesto;
+    public float $Importe = 0.0;
 }
