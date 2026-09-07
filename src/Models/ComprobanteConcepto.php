@@ -28,7 +28,7 @@ class ComprobanteConcepto
 
     public ?string $Unidad = null;
     public ?string $NoIdentificacion = null;
-    public ?float $Descuento;
+    public ?float $Descuento = null;
 
     public function addConceptoCuentaPredial(ComprobanteConceptoCuentaPredial $cuentaPredial): self
     {

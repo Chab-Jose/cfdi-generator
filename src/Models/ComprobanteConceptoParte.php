@@ -13,8 +13,8 @@ class ComprobanteConceptoParte
 
     public ?string $NoIdentificacion = null;
     public ?string $Unidad = null;
-    public ?float $ValorUnitario;
-    public ?float $Importe;
+    public ?float $ValorUnitario = null;
+    public ?float $Importe = null;
 
     public function addInformacionAduanera(ComprobanteConceptoParteInformacionAduanera $informacionAduanera):self
     {

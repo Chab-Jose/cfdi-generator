@@ -26,8 +26,8 @@ class Comprobante
     public string $Moneda;
     public string $TipoDeComprobante;
     
-    public ?float $Descuento;
-    public ?float $TipoCambio;
+    public ?float $Descuento = null;
+    public ?float $TipoCambio = null;
     public string $Exportacion;
     public ?string $Serie = null;
     public ?string $Folio = null;

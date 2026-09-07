@@ -6,11 +6,11 @@ namespace ChabJose\CfdiGenerator\Contracts;
 
 use ChabJose\CfdiGenerator\Models\ComprobanteConcepto;
 
-interface ConceptoCalculatorInterface
+interface ConceptoImpuestosCalculatorInterface
 {
     /**
      * Calcula el Importe de un concepto (ValorUnitario * Cantidad).
      * Si $forzar es false, no sobreescribe un Importe ya definido manualmente.
-     */
-    public function calcularImporte(ComprobanteConcepto $concepto, int $decimales = 2, bool $forzar = false): float;
+     */    
+    public function calcular(ComprobanteConcepto $concepto, bool $forzar = false): ComprobanteConcepto;
 }
