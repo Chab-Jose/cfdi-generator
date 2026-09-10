@@ -18,12 +18,17 @@ final class CsdLoader implements CsdLoaderInterface
         $certificadoPem = $this->derACertificadoPem($certificadoDer);
         $datosCertificado = $this->parsearCertificado($certificadoPem);
 
-        $llavePrivadaPem = $this->derALlavePrivadaPem($llaveDer, $password);
+        $llavePrivadaPemEncriptada = $this->derALlavePrivadaPemEncriptada($llaveDer);
+
+        // Validamos el password AHORA (falla rápido y con mensaje claro),
+        // pero NO reexportamos - solo confirmamos que abre correctamente.
+        $this->validarPassword($llavePrivadaPemEncriptada, $password);
 
         return new CsdCredential(
             noCertificado: $datosCertificado['noCertificado'],
             certificadoBase64: base64_encode($certificadoDer),
-            llavePrivadaPem: $llavePrivadaPem,
+            llavePrivadaPemEncriptada: $llavePrivadaPemEncriptada,
+            llavePrivadaPassword: $password,
             rfc: $datosCertificado['rfc'],
         );
     }
@@ -49,7 +54,6 @@ final class CsdLoader implements CsdLoaderInterface
             . chunk_split(base64_encode($certificadoDer), 64, "\n")
             . "-----END CERTIFICATE-----\n";
 
-        // Validamos que openssl realmente pueda parsear el resultado
         $recurso = openssl_x509_read($pem);
         if ($recurso === false) {
             throw new CsdException('El archivo .cer no es un certificado X.509 válido.');
@@ -58,25 +62,23 @@ final class CsdLoader implements CsdLoaderInterface
         return $pem;
     }
 
-    private function derALlavePrivadaPem(string $llaveDer, string $password): string
+    private function derALlavePrivadaPemEncriptada(string $llaveDer): string
     {
-        $pem = "-----BEGIN ENCRYPTED PRIVATE KEY-----\n"
+        return "-----BEGIN ENCRYPTED PRIVATE KEY-----\n"
             . chunk_split(base64_encode($llaveDer), 64, "\n")
             . "-----END ENCRYPTED PRIVATE KEY-----\n";
+    }
 
-        $llave = openssl_pkey_get_private($pem, $password);
+    private function validarPassword(string $llavePrivadaPemEncriptada, string $password): void
+    {
+        $llave = openssl_pkey_get_private($llavePrivadaPemEncriptada, $password);
 
         if ($llave === false) {
             throw new CsdException(
-                'No se pudo desbloquear la llave privada (.key). Verifica el password o que el archivo corresponda al CSD.'
+                'No se pudo desbloquear la llave privada (.key). Verifica el password o que el archivo corresponda al CSD. '
+                . 'Detalle OpenSSL: ' . openssl_error_string()
             );
         }
-
-        // Reexportamos a PEM sin cifrar: Sellador ya no necesita el password
-        $llavePemDesbloqueada = '';
-        openssl_pkey_export($llave, $llavePemDesbloqueada);
-
-        return $llavePemDesbloqueada;
     }
 
     /** @return array{noCertificado: string, rfc: ?string} */
@@ -88,20 +90,17 @@ final class CsdLoader implements CsdLoaderInterface
             throw new CsdException('No se pudo parsear el certificado para extraer sus datos.');
         }
 
-        // El número de certificado SAT viene en el serialNumberHex (20 bytes en hexadecimal)
         $serialHex = $datos['serialNumberHex'] ?? null;
 
         if ($serialHex === null) {
             throw new CsdException('El certificado no contiene número de serie (serialNumberHex).');
         }
 
-        // Conversión: cada par de hex representa un dígito ASCII del NoCertificado real
         $noCertificado = '';
         foreach (str_split($serialHex, 2) as $par) {
             $noCertificado .= chr((int) hexdec($par));
         }
 
-        // El RFC del emisor suele venir embebido en el subject (OID 2.5.4.45 o similar, varía por AC)
         $rfc = $datos['subject']['x500UniqueIdentifier']
             ?? $datos['subject']['serialNumber']
             ?? null;

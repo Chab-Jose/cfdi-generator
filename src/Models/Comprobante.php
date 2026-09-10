@@ -20,15 +20,15 @@ class Comprobante
     public string $Version = '4.0';
     public float $SubTotal = 0.0;
     public float $Total = 0.0;
-    public string $LugarExpedicion;
-    public string $Fecha;
-    public string $NoCertificado;
-    public string $Moneda;
-    public string $TipoDeComprobante;
+    public string $LugarExpedicion = '';
+    public string $Fecha = '';
+    public string $NoCertificado = '';
+    public string $Moneda = '';
+    public string $TipoDeComprobante = '';
+    public string $Exportacion = '';
     
     public ?float $Descuento = null;
     public ?float $TipoCambio = null;
-    public string $Exportacion;
     public ?string $Serie = null;
     public ?string $Folio = null;
     public ?string $Sello = null;

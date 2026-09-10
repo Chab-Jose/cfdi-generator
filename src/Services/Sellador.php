@@ -22,7 +22,10 @@ final class Sellador implements SelladorInterface
 
     public function sellar(string $cadenaOriginal, CsdCredential $csd): string
     {
-        $llavePrivada = openssl_pkey_get_private($csd->llavePrivadaPem, $csd->llavePrivadaPassword ?? '');
+        $llavePrivada = openssl_pkey_get_private(
+            $csd->llavePrivadaPemEncriptada,
+            $csd->llavePrivadaPassword,
+        );
 
         if ($llavePrivada === false) {
             throw new SelladoException(

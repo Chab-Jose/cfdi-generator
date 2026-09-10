@@ -56,8 +56,14 @@ final class XmlMapper implements XmlMapperInterface
             $root->appendChild($this->crearNodoCfdiRelacionados($cfdiRelacionados));
         }
 
-        $root->appendChild($this->crearNodoEmisor($comprobante->Emisor));
-        $root->appendChild($this->crearNodoReceptor($comprobante->Receptor));
+        if ($comprobante->Emisor !== null) {
+            $emisorNode = $this->crearNodoEmisor($comprobante->Emisor);
+            $root->appendChild($emisorNode);
+        }
+        if ($comprobante->Receptor !== null) {
+            $receptorNode = $this->crearNodoReceptor($comprobante->Receptor);
+            $root->appendChild($receptorNode);
+        }
         $root->appendChild($this->crearNodoConceptos($comprobante->Conceptos));
 
         if ($comprobante->Impuestos !== null) {
@@ -84,24 +90,24 @@ final class XmlMapper implements XmlMapperInterface
         $nodo->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:xsi', self::NS_XSI);
         $nodo->setAttributeNS(self::NS_XSI, 'xsi:schemaLocation', self::XSD_LOCATION);
 
-        $this->setAttr($nodo, 'Version', $c->Version);
+        $this->setRequiredAttr($nodo, 'Version', $c->Version);
         $this->setAttr($nodo, 'Serie', $c->Serie);
         $this->setAttr($nodo, 'Folio', $c->Folio);
-        $this->setAttr($nodo, 'Fecha', $c->Fecha);
+        $this->setRequiredAttr($nodo, 'Fecha', $c->Fecha);
         $this->setAttr($nodo, 'Sello', $c->Sello);
         $this->setAttr($nodo, 'FormaPago', $c->FormaPago);
-        $this->setAttr($nodo, 'NoCertificado', $c->NoCertificado);
+        $this->setRequiredAttr($nodo, 'NoCertificado', $c->NoCertificado);
         $this->setAttr($nodo, 'Certificado', $c->Certificado);
         $this->setAttr($nodo, 'CondicionesDePago', $c->CondicionesDePago);
-        $this->setAttr($nodo, 'SubTotal', $this->formatoMonto($c->SubTotal));
+        $this->setRequiredAttr($nodo, 'SubTotal', $this->formatoMonto($c->SubTotal));
         $this->setAttr($nodo, 'Descuento', $c->Descuento !== null ? $this->formatoMonto($c->Descuento) : null);
-        $this->setAttr($nodo, 'Moneda', $c->Moneda);
+        $this->setRequiredAttr($nodo, 'Moneda', $c->Moneda);
         $this->setAttr($nodo, 'TipoCambio', $c->TipoCambio !== null ? (string) $c->TipoCambio : null);
-        $this->setAttr($nodo, 'Total', $this->formatoMonto($c->Total));
-        $this->setAttr($nodo, 'TipoDeComprobante', $c->TipoDeComprobante);
-        $this->setAttr($nodo, 'Exportacion', $c->Exportacion);
+        $this->setRequiredAttr($nodo, 'Total', $this->formatoMonto($c->Total));
+        $this->setRequiredAttr($nodo, 'TipoDeComprobante', $c->TipoDeComprobante);
+        $this->setRequiredAttr($nodo, 'Exportacion', $c->Exportacion);
         $this->setAttr($nodo, 'MetodoPago', $c->MetodoPago);
-        $this->setAttr($nodo, 'LugarExpedicion', $c->LugarExpedicion);
+        $this->setRequiredAttr($nodo, 'LugarExpedicion', $c->LugarExpedicion);
         $this->setAttr($nodo, 'Confirmacion', $c->Confirmacion);
 
         return $nodo;
@@ -143,9 +149,9 @@ final class XmlMapper implements XmlMapperInterface
     private function crearNodoEmisor(ComprobanteEmisor $emisor): \DOMElement
     {
         $nodo = $this->dom->createElementNS(self::NS_CFDI, 'cfdi:Emisor');
-        $this->setAttr($nodo, 'Rfc', $emisor->Rfc);
-        $this->setAttr($nodo, 'Nombre', $emisor->Nombre);
-        $this->setAttr($nodo, 'RegimenFiscal', $emisor->RegimenFiscal);
+        $this->setRequiredAttr($nodo, 'Rfc', $emisor->Rfc);
+        $this->setRequiredAttr($nodo, 'Nombre', $emisor->Nombre);
+        $this->setRequiredAttr($nodo, 'RegimenFiscal', $emisor->RegimenFiscal);
         $this->setAttr($nodo, 'FacAtrAdquirente', $emisor->FacAtrAdquirente);
         return $nodo;
     }
@@ -153,13 +159,13 @@ final class XmlMapper implements XmlMapperInterface
     private function crearNodoReceptor(ComprobanteReceptor $receptor): \DOMElement
     {
         $nodo = $this->dom->createElementNS(self::NS_CFDI, 'cfdi:Receptor');
-        $this->setAttr($nodo, 'Rfc', $receptor->Rfc);
-        $this->setAttr($nodo, 'Nombre', $receptor->Nombre);
-        $this->setAttr($nodo, 'DomicilioFiscalReceptor', $receptor->DomicilioFiscalReceptor);
+        $this->setRequiredAttr($nodo, 'Rfc', $receptor->Rfc);
+        $this->setRequiredAttr($nodo, 'Nombre', $receptor->Nombre);
+        $this->setRequiredAttr($nodo, 'DomicilioFiscalReceptor', $receptor->DomicilioFiscalReceptor);
         $this->setAttr($nodo, 'ResidenciaFiscal', $receptor->ResidenciaFiscal);
         $this->setAttr($nodo, 'NumRegIdTrib', $receptor->NumRegIdTrib);
         $this->setAttr($nodo, 'RegimenFiscalReceptor', $receptor->RegimenFiscalReceptor);
-        $this->setAttr($nodo, 'UsoCFDI', $receptor->UsoCFDI);
+        $this->setRequiredAttr($nodo, 'UsoCFDI', $receptor->UsoCFDI);
         return $nodo;
     }
 
@@ -418,6 +424,15 @@ final class XmlMapper implements XmlMapperInterface
         if ($valor !== null && $valor !== '') {
             $nodo->setAttribute($nombre, $valor);
         }
+    }
+
+    private function setRequiredAttr(\DOMElement $node, string $name, string $value): void
+    {
+        if ($value === '') {
+            throw new \RuntimeException("El atributo requerido '{$name}' del SAT no puede estar vacío.");
+        }
+
+        $node->setAttribute($name, $value);
     }
 
     /** Montos: el SAT acepta hasta 6 decimales; 2 es seguro para la mayoría de los casos */
