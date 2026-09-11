@@ -1,0 +1,49 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        php-version: ['8.1', '8.2', '8.3']
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar PHP ${{ matrix.php-version }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: dom, openssl, xsl, libxml
+          coverage: none
+
+      - name: Validar composer.json
+        run: composer validate --strict
+
+      - name: Instalar dependencias
+        run: composer install --prefer-dist --no-progress
+
+      - name: Correr tests unitarios
+        run: vendor/bin/phpunit tests/Services
+
+      - name: Reconstruir CSD de pruebas desde Secrets
+        env:
+          CSD_CER_BASE64: ${{ secrets.CSD_CER_BASE64 }}
+          CSD_KEY_BASE64: ${{ secrets.CSD_KEY_BASE64 }}
+        run: |
+          mkdir -p tests/Fixtures/csd
+          echo "$CSD_CER_BASE64" | base64 -d > tests/Fixtures/csd/prueba.cer
+          echo "$CSD_KEY_BASE64" | base64 -d > tests/Fixtures/csd/prueba.key
+
+      - name: Correr tests de integración
+        env:
+          CSD_PASSWORD: ${{ secrets.CSD_PASSWORD }}
+        run: vendor/bin/phpunit tests/Integration
