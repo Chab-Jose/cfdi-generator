@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<phpunit xmlns:xsi="http://w3.org"
-         xsi:noNamespaceSchemaLocation="https://phpunit.de"
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
          bootstrap="vendor/autoload.php"
          colors="true">
     <testsuites>
-        <testsuite name="CFDI Generator Test Suite">
+        <testsuite name="Unit">
             <directory>tests</directory>
         </testsuite>
     </testsuites>
