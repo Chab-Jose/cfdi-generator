@@ -6,6 +6,7 @@ namespace ChabJose\CfdiGenerator;
 
 use ChabJose\CfdiGenerator\Contracts\ComprobanteBuilderInterface;
 use ChabJose\CfdiGenerator\Contracts\SelladorInterface;
+use ChabJose\CfdiGenerator\Contracts\TimbradoInterface;
 use ChabJose\CfdiGenerator\Contracts\ValidadorInterface;
 use ChabJose\CfdiGenerator\Contracts\XmlMapperInterface;
 use ChabJose\CfdiGenerator\Domain\CsdCredential;
@@ -25,6 +26,7 @@ class CfdiGenerator
 {
     private Comprobante $comprobante;
     private ?Comprobante $comprobanteConstruido = null;
+    private string $xmlTimbrado;
 
     public function __construct(
         private ComprobanteBuilderInterface $builder,
@@ -167,5 +169,25 @@ class CfdiGenerator
         $this->comprobanteConstruido = $comprobante;
 
         return $this;
+    }
+
+    public function buildXmlBase64(): string
+    {
+        return base64_encode($this->buildXml());
+    }
+
+    public function timbrar(TimbradoInterface $timbrador): self
+    {
+        $xmlSellado = $this->buildXml();
+        $xmlTimbrado = $timbrador->timbrar($xmlSellado);
+
+        $this->xmlTimbrado = $xmlTimbrado;
+
+        return $this;
+    }
+
+    public function xmlFinal(): string
+    {
+        return $this->xmlTimbrado ?? $this->buildXml();
     }
 }
