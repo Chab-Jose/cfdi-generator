@@ -31,9 +31,6 @@ jobs:
       - name: Instalar dependencias
         run: composer install --prefer-dist --no-progress
 
-      - name: Correr tests unitarios
-        run: vendor/bin/phpunit tests/Services
-
       - name: Reconstruir CSD de pruebas desde Secrets
         env:
           CSD_CER_BASE64: ${{ secrets.CSD_CER_BASE64 }}
@@ -42,6 +39,9 @@ jobs:
           mkdir -p tests/Fixtures/csd
           echo "$CSD_CER_BASE64" | base64 -d > tests/Fixtures/csd/prueba.cer
           echo "$CSD_KEY_BASE64" | base64 -d > tests/Fixtures/csd/prueba.key
+
+      - name: Correr tests unitarios
+        run: vendor/bin/phpunit tests/Services
 
       - name: Correr tests de integración
         env:
