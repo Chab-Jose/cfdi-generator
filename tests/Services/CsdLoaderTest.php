@@ -13,7 +13,6 @@ class CsdLoaderTest extends TestCase
 {
     private const RUTA_CER = __DIR__ . '/../Fixtures/csd/prueba.cer';
     private const RUTA_KEY = __DIR__ . '/../Fixtures/csd/prueba.key';
-    private const PASSWORD = '12345678a';
 
     private CsdLoader $loader;
 
@@ -24,7 +23,7 @@ class CsdLoaderTest extends TestCase
 
     public function testCargaUnCsdValidoYRegresaCsdCredential(): void
     {
-        $credential = $this->loader->cargar(self::RUTA_CER, self::RUTA_KEY, self::PASSWORD);
+        $credential = $this->loader->cargar(self::RUTA_CER, self::RUTA_KEY, $this->password());
 
         $this->assertInstanceOf(CsdCredential::class, $credential);
         $this->assertNotEmpty($credential->noCertificado);
@@ -33,14 +32,14 @@ class CsdLoaderTest extends TestCase
 
     public function testNoCertificadoEsUnaCadenaNumericaDe20Digitos(): void
     {
-        $credential = $this->loader->cargar(self::RUTA_CER, self::RUTA_KEY, self::PASSWORD);
+        $credential = $this->loader->cargar(self::RUTA_CER, self::RUTA_KEY, $this->password());
 
         $this->assertMatchesRegularExpression('/^\d{20}$/', $credential->noCertificado);
     }
 
     public function testLlavePrivadaQuedaEncriptadaYSeAbreConPassword(): void
     {
-        $credential = $this->loader->cargar(self::RUTA_CER, self::RUTA_KEY, self::PASSWORD);
+        $credential = $this->loader->cargar(self::RUTA_CER, self::RUTA_KEY, $this->password());
 
         // Ya NO se abre sin password (a diferencia del diseño anterior)
         $sinPassword = openssl_pkey_get_private($credential->llavePrivadaPemEncriptada);
@@ -64,6 +63,11 @@ class CsdLoaderTest extends TestCase
         $this->expectException(CsdException::class);
         $this->expectExceptionMessageMatches('/No se encontró el archivo/');
 
-        $this->loader->cargar('/ruta/inexistente.cer', self::RUTA_KEY, self::PASSWORD);
+        $this->loader->cargar('/ruta/inexistente.cer', self::RUTA_KEY, $this->password());
+    }
+
+    private function password(): string
+    {
+        return getenv('CSD_PASSWORD') ?: '12345678a';
     }
 }
