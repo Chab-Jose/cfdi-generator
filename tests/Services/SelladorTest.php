@@ -14,7 +14,6 @@ class SelladorTest extends TestCase
 {
     private const RUTA_CER = __DIR__ . '/../Fixtures/csd/prueba.cer';
     private const RUTA_KEY = __DIR__ . '/../Fixtures/csd/prueba.key';
-    private const PASSWORD = '12345678a';
 
     public function testGenerarCadenaOriginalDelegaAlServicioInyectado(): void
     {
@@ -40,7 +39,7 @@ class SelladorTest extends TestCase
     {
         // Arrange: aquí SÍ usamos un CSD real, porque sellar() es pura criptografía,
         // no involucra el XSLT en absoluto (el mock de arriba ya cubrió esa parte).
-        $csd = (new CsdLoader())->cargar(self::RUTA_CER, self::RUTA_KEY, self::PASSWORD);
+        $csd = (new CsdLoader())->cargar(self::RUTA_CER, self::RUTA_KEY, $this->password());
         $cadenaOriginalMock = $this->createMock(CadenaOriginalServiceInterface::class);
         $sellador = new Sellador($cadenaOriginalMock);
 
@@ -56,7 +55,7 @@ class SelladorTest extends TestCase
     {
         // Arrange: round-trip real de firma + verificación con openssl directo
         // (no depende de un método validarSello() que Sellador no expone)
-        $csd = (new CsdLoader())->cargar(self::RUTA_CER, self::RUTA_KEY, self::PASSWORD);
+        $csd = (new CsdLoader())->cargar(self::RUTA_CER, self::RUTA_KEY, $this->password());
         $cadenaOriginalMock = $this->createMock(CadenaOriginalServiceInterface::class);
         $sellador = new Sellador($cadenaOriginalMock);
 
@@ -77,7 +76,7 @@ class SelladorTest extends TestCase
     public function testDosCadenasDiferentesProducenSellosDiferentes(): void
     {
         // Arrange
-        $csd = (new CsdLoader())->cargar(self::RUTA_CER, self::RUTA_KEY, self::PASSWORD);
+        $csd = (new CsdLoader())->cargar(self::RUTA_CER, self::RUTA_KEY, $this->password());
         $cadenaOriginalMock = $this->createMock(CadenaOriginalServiceInterface::class);
         $sellador = new Sellador($cadenaOriginalMock);
 
@@ -88,4 +87,9 @@ class SelladorTest extends TestCase
         // Assert
         $this->assertNotSame($selloUno, $selloDos);
     }
+
+    private function password(): string
+{
+    return getenv('CSD_PASSWORD') ?: '12345678a';
+}
 }

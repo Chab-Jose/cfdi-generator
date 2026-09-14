@@ -31,7 +31,6 @@ class ComprobanteFullFlowTest extends TestCase
 {
     private const RUTA_CER = __DIR__ . '/../Fixtures/csd/prueba.cer';
     private const RUTA_KEY = __DIR__ . '/../Fixtures/csd/prueba.key';
-    private const PASSWORD = '12345678a';
 
     private ComprobanteBuilder $builder;
     private XmlMapper $xmlMapper;
@@ -60,7 +59,7 @@ class ComprobanteFullFlowTest extends TestCase
     {
         // ── Arrange: comprobante crudo con datos reales de negocio ──
         $comprobante = $this->comprobanteDePrueba();
-        $csd = $this->csdLoader->cargar(self::RUTA_CER, self::RUTA_KEY, self::PASSWORD);
+        $csd = $this->csdLoader->cargar(self::RUTA_CER, self::RUTA_KEY, $this->password());
 
         // El NoCertificado/Certificado se conocen ANTES de calcular, porque
         // vienen del CSD, no de la lógica de negocio del comprobante.
@@ -118,7 +117,7 @@ class ComprobanteFullFlowTest extends TestCase
     public function testDosComprobantesDiferentesProducenSellosDiferentes(): void
     {
         // Arrange
-        $csd = $this->csdLoader->cargar(self::RUTA_CER, self::RUTA_KEY, self::PASSWORD);
+        $csd = $this->csdLoader->cargar(self::RUTA_CER, self::RUTA_KEY, $this->password());
 
         $comprobanteUno = $this->builder->build($this->comprobanteDePrueba());
         $comprobanteUno->NoCertificado = $csd->noCertificado;
@@ -206,5 +205,10 @@ class ComprobanteFullFlowTest extends TestCase
 
 
         return $comprobante;
+    }
+
+    private function password(): string
+    {
+        return getenv('CSD_PASSWORD') ?: '12345678a';
     }
 }
