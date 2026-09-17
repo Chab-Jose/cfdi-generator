@@ -4,16 +4,9 @@ declare(strict_types=1);
 
 namespace ChabJose\CfdiGenerator;
 
-use ChabJose\CfdiGenerator\Contracts\ComprobanteBuilderInterface;
-use ChabJose\CfdiGenerator\Contracts\SelladorInterface;
-use ChabJose\CfdiGenerator\Contracts\TimbradoInterface;
 use ChabJose\CfdiGenerator\Contracts\ValidadorInterface;
-use ChabJose\CfdiGenerator\Contracts\XmlMapperInterface;
-use ChabJose\CfdiGenerator\Domain\CsdCredential;
-use ChabJose\CfdiGenerator\Models\Comprobante;
+use ChabJose\CfdiGenerator\Contracts\SelladorInterface;
 use ChabJose\CfdiGenerator\Models\ComprobanteConcepto;
-use ChabJose\CfdiGenerator\Models\ComprobanteEmisor;
-use ChabJose\CfdiGenerator\Models\ComprobanteReceptor;
 use ChabJose\CfdiGenerator\Services\ComprobanteBuilder;
 use ChabJose\CfdiGenerator\Services\ComprobanteImpuestosCalculator;
 use ChabJose\CfdiGenerator\Services\ComprobanteTotalesCalculator;
@@ -22,40 +15,8 @@ use ChabJose\CfdiGenerator\Services\ConceptoImpuestosCalculator;
 use ChabJose\CfdiGenerator\Services\FactorImpuestoResolver;
 use ChabJose\CfdiGenerator\Services\XmlMapper;
 
-class CfdiGenerator
+class CfdiGenerator extends AbstractCfdiGenerator
 {
-    private Comprobante $comprobante;
-    private ?Comprobante $comprobanteConstruido = null;
-    private string $xmlTimbrado;
-
-    public function __construct(
-        private ComprobanteBuilderInterface $builder,
-        private XmlMapperInterface $xmlMapper,
-        private ?SelladorInterface $sellador = null,
-    ) {
-        $this->comprobante = new Comprobante();
-    }
-
-    /**
-     * Factory conveniente: arma toda la cadena de dependencias por defecto.
-     * Para casos avanzados (mockear en tests, sustituir un calculador),
-     * usa el constructor directamente con tus propias implementaciones.
-     */
-    public static function make(?ValidadorInterface $validador = null, ?SelladorInterface $sellador = null): self
-    {
-        $factorResolver = new FactorImpuestoResolver();
-
-        $builder = new ComprobanteBuilder(
-            new ConceptoImpuestosCalculator($factorResolver),
-            new ConceptoCalculator(),
-            new ComprobanteImpuestosCalculator(),
-            new ComprobanteTotalesCalculator(),
-            $validador,
-        );
-
-        return new self($builder, new XmlMapper(), $sellador);
-    }
-
     public function comprobante(
         string $tipoDeComprobante,
         string $moneda,
@@ -83,20 +44,9 @@ class CfdiGenerator
         return $this;
     }
 
-    public function emisor(
-        string $rfc,
-        string $nombre,
-        string $regimenFiscal,
-        ?string $facAtrAdquirente = null,
-    ): self {
-        $emisor = new ComprobanteEmisor();
-        $emisor->Rfc = $rfc;
-        $emisor->Nombre = $nombre;
-        $emisor->RegimenFiscal = $regimenFiscal;
-        $emisor->FacAtrAdquirente = $facAtrAdquirente;
-
-        $this->comprobante->Emisor = $emisor;
-
+    public function emisor(string $rfc, string $nombre, string $regimenFiscal, ?string $facAtrAdquirente = null): self
+    {
+        $this->setEmisor($rfc, $nombre, $regimenFiscal, $facAtrAdquirente);
         return $this;
     }
 
@@ -109,85 +59,28 @@ class CfdiGenerator
         ?string $residenciaFiscal = null,
         ?string $numRegIdTrib = null,
     ): self {
-        $receptor = new ComprobanteReceptor();
-        $receptor->Rfc = $rfc;
-        $receptor->Nombre = $nombre;
-        $receptor->DomicilioFiscalReceptor = $domicilioFiscalReceptor;
-        $receptor->RegimenFiscalReceptor = $regimenFiscalReceptor;
-        $receptor->UsoCFDI = $usoCFDI;
-        $receptor->ResidenciaFiscal = $residenciaFiscal;
-        $receptor->NumRegIdTrib = $numRegIdTrib;
-
-        $this->comprobante->Receptor = $receptor;
-
+        $this->setReceptor($rfc, $nombre, $domicilioFiscalReceptor, $regimenFiscalReceptor, $usoCFDI, $residenciaFiscal, $numRegIdTrib);
         return $this;
     }
 
     public function addConcepto(ComprobanteConcepto $concepto): self
     {
         $this->comprobante->Conceptos[] = $concepto;
-
         return $this;
     }
 
-    /**
-     * Ejecuta todos los cálculos (impuestos, importes, totales) y valida.
-     * Cachea el resultado: llamar build() varias veces no repite el cálculo
-     * salvo que se modifique el comprobante después.
-     */
-    public function build(): Comprobante
+    public static function make(?ValidadorInterface $validador = null, ?SelladorInterface $sellador = null): self
     {
-        if ($this->comprobanteConstruido === null) {
-            $this->comprobanteConstruido = $this->builder->build($this->comprobante);
-        }
+        $factorResolver = new FactorImpuestoResolver();
 
-        return $this->comprobanteConstruido;
-    }
+        $builder = new ComprobanteBuilder(
+            new ConceptoImpuestosCalculator($factorResolver),
+            new ConceptoCalculator(),
+            new ComprobanteImpuestosCalculator(),
+            new ComprobanteTotalesCalculator(),
+            $validador,
+        );
 
-    public function buildXml(): string
-    {
-        return $this->xmlMapper->toXml($this->build());
-    }
-
-    public function sellar(CsdCredential $csd): self
-    {
-        if ($this->sellador === null) {
-            throw new \LogicException(
-                'No se configuró un Sellador. Pásalo en CfdiGenerator::make(sellador: ...) o en el constructor.'
-            );
-        }
-
-        $comprobante = $this->build();
-        $comprobante->NoCertificado = $csd->noCertificado;
-        $comprobante->Certificado = $csd->certificadoBase64;
-
-        $xmlSinSello = $this->xmlMapper->toXml($comprobante);
-        $cadenaOriginal = $this->sellador->generarCadenaOriginal($xmlSinSello);
-        $comprobante->Sello = $this->sellador->sellar($cadenaOriginal, $csd);
-
-        // Invalida el cache para que buildXml() regenere el XML con el Sello ya incluido
-        $this->comprobanteConstruido = $comprobante;
-
-        return $this;
-    }
-
-    public function buildXmlBase64(): string
-    {
-        return base64_encode($this->buildXml());
-    }
-
-    public function timbrar(TimbradoInterface $timbrador): self
-    {
-        $xmlSellado = $this->buildXml();
-        $xmlTimbrado = $timbrador->timbrar($xmlSellado);
-
-        $this->xmlTimbrado = $xmlTimbrado;
-
-        return $this;
-    }
-
-    public function xmlFinal(): string
-    {
-        return $this->xmlTimbrado ?? $this->buildXml();
+        return new self($builder, new XmlMapper(), $sellador);
     }
 }
