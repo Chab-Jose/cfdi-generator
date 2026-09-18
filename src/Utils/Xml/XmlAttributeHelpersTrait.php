@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ChabJose\CfdiGenerator\Services\Xml;
+namespace ChabJose\CfdiGenerator\Utils\Xml;
 
 trait XmlAttributeHelpersTrait
 {

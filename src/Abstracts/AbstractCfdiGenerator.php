@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ChabJose\CfdiGenerator;
+namespace ChabJose\CfdiGenerator\Abstracts;
 
 use ChabJose\CfdiGenerator\Contracts\ComprobanteBuilderInterface;
 use ChabJose\CfdiGenerator\Contracts\SelladorInterface;

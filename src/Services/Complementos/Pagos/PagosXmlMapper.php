@@ -8,7 +8,7 @@ use ChabJose\CfdiGenerator\Contracts\ComplementoXmlMapperInterface;
 use ChabJose\CfdiGenerator\Models\Complementos\Pagos\Pagos;
 use ChabJose\CfdiGenerator\Models\Complementos\Pagos\PagosPago;
 use ChabJose\CfdiGenerator\Models\Complementos\Pagos\PagosPagoDoctoRelacionado;
-use ChabJose\CfdiGenerator\Services\Xml\XmlAttributeHelpersTrait;
+use ChabJose\CfdiGenerator\Utils\Xml\XmlAttributeHelpersTrait;
 
 class PagosXmlMapper implements ComplementoXmlMapperInterface
 {

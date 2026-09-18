@@ -16,7 +16,7 @@ class PagosPagoImpuestosP
         return $this;
     }
 
-    public function addTrasladoDR(PagosPagoImpuestosPTrasladoP $trasladoP): self
+    public function addTrasladoP(PagosPagoImpuestosPTrasladoP $trasladoP): self
     {
         $this->TrasladosP[] = $trasladoP;
         return $this;

@@ -8,7 +8,7 @@ class PagosPagoDoctoRelacionado
 
     public string $IdDocumento;
     public string $MonedaDR;
-    public string $NumParcialidad;
+    public int $NumParcialidad;
     public float $ImpSaldoAnt = 0.0;
     public float $ImpPagado = 0.0;
     public float $ImpSaldoInsoluto = 0.0;

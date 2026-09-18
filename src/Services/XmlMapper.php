@@ -24,7 +24,7 @@ use ChabJose\CfdiGenerator\Models\ComprobanteImpuestosTraslado;
 use ChabJose\CfdiGenerator\Models\ComprobanteImpuestosRetencion;
 use ChabJose\CfdiGenerator\Models\ComprobanteInformacionGlobal;
 use ChabJose\CfdiGenerator\Services\Complementos\ComplementoRegistry;
-use ChabJose\CfdiGenerator\Services\Xml\XmlAttributeHelpersTrait;
+use ChabJose\CfdiGenerator\Utils\Xml\XmlAttributeHelpersTrait;
 
 class XmlMapper implements XmlMapperInterface
 {

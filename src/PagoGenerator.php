@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ChabJose\CfdiGenerator;
 
+use ChabJose\CfdiGenerator\Abstracts\AbstractCfdiGenerator;
 use ChabJose\CfdiGenerator\Contracts\ComprobanteBuilderInterface;
 use ChabJose\CfdiGenerator\Contracts\PagosBuilderInterface;
 use ChabJose\CfdiGenerator\Contracts\SelladorInterface;
@@ -138,10 +139,10 @@ class PagoGenerator extends AbstractCfdiGenerator
             new PagosTotalesCalculator(),
         );
 
-          $registry = new ComplementoRegistry();
-          $registry->registrar(new PagosXmlMapper());
+        $registry = new ComplementoRegistry();
+        $registry->registrar(new PagosXmlMapper());
 
 
-        return new self($comprobanteBuilder, new XmlMapper(), $pagosBuilder, $sellador);
+        return new self($comprobanteBuilder, new XmlMapper($registry), $pagosBuilder, $sellador);
     }
 }

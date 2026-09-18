@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ChabJose\CfdiGenerator;
 
+use ChabJose\CfdiGenerator\Abstracts\AbstractCfdiGenerator;
 use ChabJose\CfdiGenerator\Contracts\ValidadorInterface;
 use ChabJose\CfdiGenerator\Contracts\SelladorInterface;
 use ChabJose\CfdiGenerator\Models\ComprobanteConcepto;

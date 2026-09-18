@@ -13,9 +13,9 @@ class PagosPago
     public string $FormaDePagoP;
     public string $MonedaP;
     public float $Monto = 0.0;
-    public float $TipoCambioP = 0.0;
-
-
+    
+    
+    public ?float $TipoCambioP = null;
     public ?string $NumOperacion = null;
     public ?string $RfcEmisorCtaOrd = null;
     public ?string $NomBancoOrdExt = null;
