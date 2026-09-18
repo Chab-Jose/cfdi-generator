@@ -1,5 +1,6 @@
 # CFDI Generator
 
+[![Tests](https://github.com/Chab-Jose/cfdi-generator/actions/workflows/tests.yml/badge.svg)](https://github.com/Chab-Jose/cfdi-generator/actions/workflows/tests.yml)
 [![Latest Version](https://img.shields.io/packagist/v/chabjose/cfdi-generator.svg)](https://packagist.org/packages/chabjose/cfdi-generator)
 [![License](https://img.shields.io/packagist/l/chabjose/cfdi-generator.svg)](LICENSE)
 [![PHP Version](https://img.shields.io/packagist/php-v/chabjose/cfdi-generator.svg)](composer.json)
@@ -19,7 +20,8 @@ sellar comprobantes fiscales conforme al esquema del SAT.
 - ✅ Mapeo a XML válido según el esquema CFDI 4.0 del SAT
 - ✅ Sellado digital completo (cadena original + firma SHA256) usando el XSLT oficial del SAT
 - ✅ Carga de CSD (.cer/.key) con conversión DER→PEM incluida
-- ✅ Arquitectura extensible: cada pieza (cálculo, mapeo, sellado, validación) es sustituible vía contratos
+- ✅ **Complemento de Pagos (REP) 2.0**, con cálculo automático de impuestos agrupados y conversión de moneda a MXN en el nodo `Totales`
+- ✅ Arquitectura extensible: cada pieza (cálculo, mapeo, sellado, validación) es sustituible vía contratos, y nuevos complementos se agregan sin modificar el core (`ComplementoRegistry`)
 - ✅ Cobertura de tests amplia, incluyendo verificación criptográfica real del sello
 
 ## Requisitos
@@ -33,7 +35,7 @@ sellar comprobantes fiscales conforme al esquema del SAT.
 composer require chabjose/cfdi-generator
 ```
 
-## Uso básico
+## Uso básico: CFDI de Ingreso/Egreso
 
 ```php
 use ChabJose\CfdiGenerator\CfdiGenerator;
@@ -103,6 +105,74 @@ así como `SubTotal`, `Descuento` y `Total` del comprobante — no es necesario
 calcularlos manualmente, aunque si ya traes un valor desde otro sistema
 (ERP, POS), el paquete lo respeta y no lo sobreescribe.
 
+## Complemento de Pagos (REP) 2.0
+
+Para CFDIs de tipo "P" (Pago), usa el facade dedicado `PagoGenerator` — no
+`CfdiGenerator` — ya que un comprobante de Pago tiene reglas estructurales
+propias (Concepto fijo, SubTotal/Total en cero, Moneda "XXX") que este
+facade configura automáticamente.
+
+```php
+use ChabJose\CfdiGenerator\PagoGenerator;
+use ChabJose\CfdiGenerator\Models\Complementos\Pagos\PagosPago;
+use ChabJose\CfdiGenerator\Models\Complementos\Pagos\PagosDoctoRelacionado;
+use ChabJose\CfdiGenerator\Models\Complementos\Pagos\PagosImpuestosDR;
+use ChabJose\CfdiGenerator\Models\Complementos\Pagos\PagosTrasladoDR;
+
+$traslado = new PagosTrasladoDR();
+$traslado->BaseDR = 1000.00;
+$traslado->ImpuestoDR = '002';
+$traslado->TipoFactorDR = 'Tasa';
+$traslado->TasaOCuotaDR = 0.16;
+
+$impuestosDR = new PagosImpuestosDR();
+$impuestosDR->addTrasladoDR($traslado);
+
+$docto = new PagosDoctoRelacionado();
+$docto->IdDocumento = '11111111-2222-3333-4444-555555555555'; // UUID de la factura pagada
+$docto->MonedaDR = 'MXN';
+$docto->NumParcialidad = 1;
+$docto->ImpSaldoAnt = 1160.00;
+$docto->ImpPagado = 1160.00;
+$docto->ImpSaldoInsoluto = 0.0;
+$docto->ObjetoImpDR = '02';
+$docto->ImpuestosDR = $impuestosDR;
+
+$pago = new PagosPago();
+$pago->FechaPago = '2026-09-11T12:00:00';
+$pago->FormaDePagoP = '03';
+$pago->MonedaP = 'MXN';
+$pago->Monto = 1160.00;
+$pago->addDoctoRelacionado($docto);
+
+$xmlSellado = PagoGenerator::make(sellador: $sellador)
+    ->comprobante(lugarExpedicion: '24090')
+    ->emisor(rfc: 'XAXX010101000', nombre: 'ACME SA DE CV', regimenFiscal: '601')
+    ->receptor(
+        rfc: 'XEXX010101000',
+        nombre: 'PUBLICO EN GENERAL',
+        domicilioFiscalReceptor: '24090',
+        regimenFiscalReceptor: '616',
+        usoCFDI: 'CP01',
+    )
+    ->pago($pago)
+    ->sellar($csd)
+    ->buildXml();
+```
+
+El paquete calcula automáticamente los tres niveles de agregación del
+complemento (impuestos por documento relacionado → impuestos agregados por
+pago → totales del complemento), incluyendo conversión automática a MXN
+cuando un pago viene en moneda extranjera.
+
+> ⚠️ **Reglas cruzadas del SAT pendientes**: el SAT publica un catálogo
+> (`c_FormaPago`) con reglas de obligatoriedad de ciertos campos (cuentas
+> bancarias, certificación SPEI) según la forma de pago. Este paquete valida
+> las reglas cruzadas que están documentadas de forma clara y verificable
+> (ver `PagoValidator`), pero **no valida aún la matriz completa por cada
+> código de forma de pago** — esa validación queda pendiente hasta
+> incorporar el catálogo oficial completo.
+
 ## Alcance
 
 Este paquete cubre la **generación y sellado** de CFDI 4.0. Explícitamente
@@ -111,33 +181,43 @@ Este paquete cubre la **generación y sellado** de CFDI 4.0. Explícitamente
 | Fuera de alcance | Por qué |
 |---|---|
 | Timbrado (conexión a PAC) | Cada PAC tiene su propia API; conecta el tuyo implementando tu propio cliente sobre el XML que este paquete genera |
-| Complementos (Nómina, Pagos, Carta Porte, INE, IEDU, Comercio Exterior) | Roadmap futuro — ver [Roadmap](#roadmap) |
+| Otros complementos (Nómina, Carta Porte, INE, IEDU, Comercio Exterior) | Roadmap futuro — ver [Roadmap](#roadmap) |
 | Representación impresa (PDF) | Fuera del alcance de esta versión |
 
 ## Arquitectura
 
 ```
-CfdiGenerator (facade fluido)
-    └── ComprobanteBuilder (orquesta el cálculo)
+CfdiGenerator / PagoGenerator (facades fluidos, extienden AbstractCfdiGenerator)
+    └── ComprobanteBuilder (orquesta el cálculo del CFDI base)
             ├── ConceptoImpuestosCalculator
             ├── ConceptoCalculator
             ├── ComprobanteImpuestosCalculator
             └── ComprobanteTotalesCalculator
 
+    └── PagosBuilder (orquesta el cálculo del complemento de Pagos)
+            ├── DoctoRelacionadoImpuestosCalculator
+            ├── PagoImpuestosCalculator
+            └── PagosTotalesCalculator (con conversión de moneda a MXN)
+
 XmlMapper          → Comprobante (modelo) → XML
+    └── ComplementoRegistry → despacha cada complemento a su propio XmlMapper
+          └── PagosXmlMapper → pago20:Pagos
+
 CadenaOriginalService → XML → Cadena Original (XSLT oficial SAT)
 Sellador           → Cadena Original + CSD → Sello digital
 CsdLoader          → .cer/.key → CsdCredential
 ```
 
 Cada pieza está definida por un contrato en `Contracts/` — puedes sustituir
-cualquier implementación (por ejemplo, un `TotalesCalculatorInterface`
-personalizado) sin tocar el resto del paquete.
+cualquier implementación sin tocar el resto del paquete. Nuevos complementos
+se agregan implementando `ComplementoXmlMapperInterface` y registrándolos en
+`ComplementoRegistry`, sin modificar `XmlMapper`.
 
 ## Testing
 
 El paquete incluye tests unitarios y de integración. Los tests que requieren
-un CSD real (sellado, cadena original) necesitan un CSD de **pruebas** del SAT:
+un CSD real (sellado, cadena original, complemento de Pagos) necesitan un
+CSD de **pruebas** del SAT:
 
 ```bash
 composer install
@@ -149,7 +229,7 @@ instrucciones de cómo obtener un CSD de pruebas.
 
 ## Roadmap
 
-- [ ] Complemento de Pagos 2.0
+- [ ] Validación de la matriz completa `c_FormaPago` para el complemento de Pagos
 - [ ] Complemento de Nómina 1.2
 - [ ] Complemento de Carta Porte
 - [ ] Contrato `TimbradoInterface` (opcional, sin implementación propia)
@@ -157,8 +237,8 @@ instrucciones de cómo obtener un CSD de pruebas.
 
 ## Contribuir
 
-Los pull requests son bienvenidos. Para cambios grandes, abre un issue
-primero para discutir qué te gustaría cambiar.
+Los pull requests son bienvenidos. Revisa [CONTRIBUTING.md](CONTRIBUTING.md)
+para las convenciones del proyecto antes de abrir uno.
 
 ## Licencia
 
