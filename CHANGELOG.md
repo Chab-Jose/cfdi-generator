@@ -5,6 +5,44 @@ Todos los cambios notables de este paquete se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.1.0] - 2026-09-11
+
+### Agregado
+- Complemento de Pagos (REP) 2.0 Revisión B completo:
+  - Modelos de dominio (`Pagos`, `PagosPago`, `PagosDoctoRelacionado`,
+    `PagosImpuestosDR`/`PagosImpuestosP`, `PagosTotales`) validados contra
+    el XSD oficial `Pagos20.xsd`
+  - Cálculo de impuestos por documento relacionado
+    (`DoctoRelacionadoImpuestosCalculator`), reutilizando `FactorImpuestoResolver`
+  - Agregación de impuestos por Pago (`PagoImpuestosCalculator`), agrupando
+    Traslados por Impuesto+TipoFactor+TasaOCuota y Retenciones por Impuesto
+  - Agregación de Totales del complemento (`PagosTotalesCalculator`), con
+    **conversión automática a MXN** de pagos en moneda extranjera usando
+    `TipoCambioP`, y desglose por tasa de IVA (16%, 8%, 0%, Exento)
+  - Orquestación completa (`PagosBuilder`)
+  - Mapeo a XML del complemento (`PagosXmlMapper`)
+  - Validaciones de reglas cruzadas documentadas del SAT (`PagoValidator`):
+    TipoCadPago↔CertPago/CadPago/SelloPago, FormaDePagoP≠99, MonedaP≠XXX,
+    TipoCambioP requerido si MonedaP≠MXN, consistencia de cuenta
+    ordenante/beneficiaria
+- `AbstractCfdiGenerator`: nueva clase base que factoriza la plomería común
+  (Emisor, Receptor, build, buildXml, sellar) entre distintos tipos de
+  comprobante, sin heredar métodos que no aplican a cada tipo
+- `PagoGenerator`: facade dedicado para CFDIs tipo "P" (Pago), con
+  configuración automática de las reglas estructurales del tipo (Concepto
+  fijo obligatorio, SubTotal/Total en cero, Moneda "XXX")
+- `ComplementoRegistry` y `ComplementoXmlMapperInterface`: mecanismo de
+  despacho extensible para que futuros complementos (Nómina, Carta Porte)
+  se integren sin modificar `XmlMapper`
+- Soporte para múltiples complementos simultáneos en `cfdi:Complemento`
+  (`ComprobanteComplemento::Any`)
+
+### Pendiente (documentado como limitación conocida)
+- El complemento de Pagos no valida aún la matriz completa de
+  obligatoriedad por código de `FormaDePagoP` publicada en el catálogo
+  `c_FormaPago` del SAT — solo las reglas cruzadas documentadas de forma
+  verificable (ver Roadmap en README)
+
 ## [1.0.0] - 2026-09-11
 
 ### Agregado
@@ -35,4 +73,5 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - Complementos del SAT (Nómina, Pagos, Carta Porte, INE, IEDU, Comercio Exterior)
 - Representación impresa (PDF)
 
+[1.1.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.0.0

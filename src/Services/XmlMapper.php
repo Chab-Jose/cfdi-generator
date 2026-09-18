@@ -23,14 +23,22 @@ use ChabJose\CfdiGenerator\Models\ComprobanteImpuestos;
 use ChabJose\CfdiGenerator\Models\ComprobanteImpuestosTraslado;
 use ChabJose\CfdiGenerator\Models\ComprobanteImpuestosRetencion;
 use ChabJose\CfdiGenerator\Models\ComprobanteInformacionGlobal;
+use ChabJose\CfdiGenerator\Services\Complementos\ComplementoRegistry;
+use ChabJose\CfdiGenerator\Utils\Xml\XmlAttributeHelpersTrait;
 
-final class XmlMapper implements XmlMapperInterface
+class XmlMapper implements XmlMapperInterface
 {
+    use XmlAttributeHelpersTrait;
+
     private const NS_CFDI = 'http://www.sat.gob.mx/cfd/4';
     private const NS_XSI = 'http://www.w3.org/2001/XMLSchema-instance';
     private const XSD_LOCATION = 'http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd';
 
     private \DOMDocument $dom;
+
+    public function __construct(
+        private ComplementoRegistry $complementoRegistry = new ComplementoRegistry(),
+    ) {}
 
     public function toXml(Comprobante $comprobante): string
     {
@@ -41,6 +49,7 @@ final class XmlMapper implements XmlMapperInterface
     {
         $this->dom = new \DOMDocument('1.0', 'UTF-8');
         $this->dom->formatOutput = false;
+
 
         $root = $this->crearNodoComprobante($comprobante);
         $this->dom->appendChild($root);
@@ -70,13 +79,31 @@ final class XmlMapper implements XmlMapperInterface
             $root->appendChild($this->crearNodoImpuestos($comprobante->Impuestos));
         }
 
-        if ($comprobante->Complemento !== null) {
-            $root->appendChild($this->crearNodoComplemento($comprobante->Complemento));
+        $schemaLocations = [self::XSD_LOCATION];
+
+        if ($comprobante->Complemento !== null && !empty($comprobante->Complemento->Any)) {
+            $complementoNode = $this->dom->createElementNS(self::NS_CFDI, 'cfdi:Complemento');
+
+            foreach ($comprobante->Complemento->Any as $obj) {
+                $mapper = $this->complementoRegistry->encontrarPara($obj);
+                $complementoNode->appendChild($mapper->toXmlElement($this->dom, $obj));
+
+                $root->setAttributeNS(
+                    'http://www.w3.org/2000/xmlns/',
+                    'xmlns:' . $mapper->namespacePrefix(),
+                    $mapper->namespaceUri(),
+                );
+                $schemaLocations[] = $mapper->schemaLocation();
+            }
+
+            $root->appendChild($complementoNode);
         }
 
         if ($comprobante->Addenda !== null) {
             $root->appendChild($this->crearNodoAddenda($comprobante->Addenda));
         }
+
+        $root->setAttributeNS(self::NS_XSI, 'xsi:schemaLocation', implode(' ', $schemaLocations));
 
         return $this->dom;
     }
@@ -88,7 +115,6 @@ final class XmlMapper implements XmlMapperInterface
         $nodo = $this->dom->createElementNS(self::NS_CFDI, 'cfdi:Comprobante');
 
         $nodo->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:xsi', self::NS_XSI);
-        $nodo->setAttributeNS(self::NS_XSI, 'xsi:schemaLocation', self::XSD_LOCATION);
 
         $this->setRequiredAttr($nodo, 'Version', $c->Version);
         $this->setAttr($nodo, 'Serie', $c->Serie);
@@ -391,19 +417,7 @@ final class XmlMapper implements XmlMapperInterface
         return $nodo;
     }
 
-    // ---------- Complemento / Addenda (nivel Comprobante) ----------
-
-    /** @param object{Any: array<string, object>} $complemento */
-    private function crearNodoComplemento(object $complemento): \DOMElement
-    {
-        $nodo = $this->dom->createElementNS(self::NS_CFDI, 'cfdi:Complemento');
-        foreach ($complemento->Any as $elemento) {
-            if ($elemento instanceof \DOMElement) {
-                $nodo->appendChild($this->dom->importNode($elemento, true));
-            }
-        }
-        return $nodo;
-    }
+    // ----------Addenda (nivel Comprobante) ----------
 
     /** @param object{Any: array<string, mixed>} $addenda */
     private function crearNodoAddenda(object $addenda): \DOMElement
@@ -418,22 +432,6 @@ final class XmlMapper implements XmlMapperInterface
     }
 
     // ---------- Helpers ----------
-
-    private function setAttr(\DOMElement $nodo, string $nombre, ?string $valor): void
-    {
-        if ($valor !== null && $valor !== '') {
-            $nodo->setAttribute($nombre, $valor);
-        }
-    }
-
-    private function setRequiredAttr(\DOMElement $node, string $name, string $value): void
-    {
-        if ($value === '') {
-            throw new \RuntimeException("El atributo requerido '{$name}' del SAT no puede estar vacío.");
-        }
-
-        $node->setAttribute($name, $value);
-    }
 
     /** Montos: el SAT acepta hasta 6 decimales; 2 es seguro para la mayoría de los casos */
     private function formatoMonto(float $monto): string
