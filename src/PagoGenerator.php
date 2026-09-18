@@ -13,6 +13,7 @@ use ChabJose\CfdiGenerator\Models\Complementos\Pagos\PagosPago;
 use ChabJose\CfdiGenerator\Models\Comprobante;
 use ChabJose\CfdiGenerator\Models\ComprobanteComplemento;
 use ChabJose\CfdiGenerator\Models\ComprobanteConcepto;
+use ChabJose\CfdiGenerator\Services\Complementos\ComplementoRegistry;
 use ChabJose\CfdiGenerator\Services\ComprobanteBuilder;
 use ChabJose\CfdiGenerator\Services\ComprobanteImpuestosCalculator;
 use ChabJose\CfdiGenerator\Services\ComprobanteTotalesCalculator;
@@ -22,6 +23,7 @@ use ChabJose\CfdiGenerator\Services\Complementos\Pagos\DoctoRelacionadoImpuestos
 use ChabJose\CfdiGenerator\Services\Complementos\Pagos\PagoImpuestosCalculator;
 use ChabJose\CfdiGenerator\Services\Complementos\Pagos\PagosBuilder;
 use ChabJose\CfdiGenerator\Services\Complementos\Pagos\PagosTotalesCalculator;
+use ChabJose\CfdiGenerator\Services\Complementos\Pagos\PagosXmlMapper;
 use ChabJose\CfdiGenerator\Services\FactorImpuestoResolver;
 use ChabJose\CfdiGenerator\Services\XmlMapper;
 
@@ -135,6 +137,10 @@ class PagoGenerator extends AbstractCfdiGenerator
             new PagoImpuestosCalculator(),
             new PagosTotalesCalculator(),
         );
+
+          $registry = new ComplementoRegistry();
+          $registry->registrar(new PagosXmlMapper());
+
 
         return new self($comprobanteBuilder, new XmlMapper(), $pagosBuilder, $sellador);
     }
