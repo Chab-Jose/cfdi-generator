@@ -5,7 +5,7 @@ namespace ChabJose\CfdiGenerator\Models;
 class ComprobanteComplemento
 {
     /** @var array  (XmlElement[] → array) */
-    public array $Any;
+    public array $Any = [];
 
     public function addComplemento(string $nombre, object $complemento):self
     {
