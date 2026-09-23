@@ -318,6 +318,11 @@ instrucciones de cómo obtener un CSD de pruebas.
 - [ ] Contrato `TimbradoInterface` (opcional, sin implementación propia)
 - [ ] Representación impresa (PDF)
 
+## Reportar un problema
+
+¿Encontraste un bug? Abre un Issue usando la plantilla correspondiente. 
+Para vulnerabilidades de seguridad, revisa SECURITY.md en vez de abrir un Issue público.
+
 ## Contribuir
 
 Los pull requests son bienvenidos. Revisa [CONTRIBUTING.md](CONTRIBUTING.md)
