@@ -21,6 +21,7 @@ sellar comprobantes fiscales conforme al esquema del SAT.
 - ✅ Sellado digital completo (cadena original + firma SHA256) usando el XSLT oficial del SAT
 - ✅ Carga de CSD (.cer/.key) con conversión DER→PEM incluida
 - ✅ **Complemento de Pagos (REP) 2.0**, con cálculo automático de impuestos agrupados y conversión de moneda a MXN en el nodo `Totales`
+- ✅ **Complemento de Nómina 1.2**, con cálculo automático de Percepciones/Deducciones/Totales, incluyendo la regla oficial de exclusión mutua entre Sueldos y Jubilación/Pensión/Retiro
 - ✅ Arquitectura extensible: cada pieza (cálculo, mapeo, sellado, validación) es sustituible vía contratos, y nuevos complementos se agregan sin modificar el core (`ComplementoRegistry`)
 - ✅ Cobertura de tests amplia, incluyendo verificación criptográfica real del sello
 
@@ -173,6 +174,82 @@ cuando un pago viene en moneda extranjera.
 > código de forma de pago** — esa validación queda pendiente hasta
 > incorporar el catálogo oficial completo.
 
+## Complemento de Nómina 1.2
+
+Para CFDIs de tipo "N" (Nómina), usa el facade dedicado `NominaGenerator`.
+Igual que con Pagos, este facade configura automáticamente las reglas fijas
+del SAT para este tipo de comprobante (`TipoDeComprobante="N"`,
+`Moneda="MXN"`, `FormaPago="99"`, `MetodoPago="PUE"`,
+`Receptor.RegimenFiscalReceptor="605"`, `Receptor.UsoCFDI="CN01"`, y el
+Concepto fijo `ClaveProdServ="84111505"`), por lo que `receptor()` en este
+facade **no** pide `regimenFiscalReceptor` ni `usoCFDI` — ya están fijados
+según la guía oficial del SAT.
+
+```php
+use ChabJose\CfdiGenerator\NominaGenerator;
+use ChabJose\CfdiGenerator\Models\Complementos\Nomina\Nomina;
+use ChabJose\CfdiGenerator\Models\Complementos\Nomina\NominaReceptor;
+use ChabJose\CfdiGenerator\Models\Complementos\Nomina\NominaPercepcion;
+use ChabJose\CfdiGenerator\Models\Complementos\Nomina\NominaPercepciones;
+use ChabJose\CfdiGenerator\Models\Complementos\Nomina\NominaDeduccion;
+use ChabJose\CfdiGenerator\Models\Complementos\Nomina\NominaDeducciones;
+
+$nomina = new Nomina();
+$nomina->TipoNomina = 'O';
+$nomina->FechaPago = '2026-09-15';
+$nomina->FechaInicialPago = '2026-09-01';
+$nomina->FechaFinalPago = '2026-09-15';
+$nomina->NumDiasPagados = 15.0;
+
+$receptor = new NominaReceptor();
+$receptor->Curp = 'PEJJ800101HDFRRN01';
+$receptor->TipoContrato = '01';
+$receptor->TipoRegimen = '02';
+$receptor->NumEmpleado = '001';
+$receptor->PeriodicidadPago = '04';
+$receptor->ClaveEntFed = 'CMX';
+$nomina->Receptor = $receptor;
+
+$percepciones = new NominaPercepciones();
+$sueldo = new NominaPercepcion();
+$sueldo->TipoPercepcion = '001'; // Sueldos, Salarios Rayas y Jornales
+$sueldo->Clave = 'P001';
+$sueldo->Concepto = 'Sueldos y salarios';
+$sueldo->ImporteGravado = 3030.51;
+$sueldo->ImporteExento = 0.0;
+$percepciones->addPercepcion($sueldo);
+$nomina->Percepciones = $percepciones;
+
+$deducciones = new NominaDeducciones();
+$isr = new NominaDeduccion();
+$isr->TipoDeduccion = '002'; // ISR
+$isr->Clave = 'D002';
+$isr->Concepto = 'ISR';
+$isr->Importe = 400.00;
+$deducciones->addDeduccion($isr);
+$nomina->Deducciones = $deducciones;
+
+$xmlSellado = NominaGenerator::make(sellador: $sellador)
+    ->comprobante(lugarExpedicion: '06600')
+    ->emisor(rfc: 'AAA010101AAA', nombre: 'MI EMPRESA SA DE CV', regimenFiscal: '601')
+    ->receptor(rfc: 'XAXX010101000', nombre: 'JUAN PEREZ', domicilioFiscalReceptor: '01000')
+    ->nomina($nomina)
+    ->sellar($csd)
+    ->buildXml();
+```
+
+El paquete calcula automáticamente `TotalGravado`/`TotalExento`/`TotalSueldos`
+por percepciones, `TotalImpuestosRetenidos`/`TotalOtrasDeducciones` por
+deducciones, los totales a nivel `Nomina`, y propaga esos totales al Concepto
+fijo del Comprobante (`ValorUnitario = TotalPercepciones + TotalOtrosPagos`,
+`Descuento = TotalDeducciones`), de donde el resto del cálculo del CFDI
+(`SubTotal`, `Total`) sigue la misma aritmética estándar del paquete.
+
+> ℹ️ Soporta percepciones especiales como Horas Extra, Acciones o Títulos,
+> Jubilación/Pensión/Retiro (con la regla oficial de exclusión mutua respecto
+> a `TotalSueldos`), Separación e Indemnización, así como Subsidio al Empleo,
+> Compensación de Saldos a Favor e Incapacidades.
+
 ## Alcance
 
 Este paquete cubre la **generación y sellado** de CFDI 4.0. Explícitamente
@@ -181,13 +258,14 @@ Este paquete cubre la **generación y sellado** de CFDI 4.0. Explícitamente
 | Fuera de alcance | Por qué |
 |---|---|
 | Timbrado (conexión a PAC) | Cada PAC tiene su propia API; conecta el tuyo implementando tu propio cliente sobre el XML que este paquete genera |
-| Otros complementos (Nómina, Carta Porte, INE, IEDU, Comercio Exterior) | Roadmap futuro — ver [Roadmap](#roadmap) |
+| Otros complementos (Carta Porte, INE, IEDU, Comercio Exterior) | Roadmap futuro — ver [Roadmap](#roadmap) |
 | Representación impresa (PDF) | Fuera del alcance de esta versión |
 
 ## Arquitectura
 
 ```
-CfdiGenerator / PagoGenerator (facades fluidos, extienden AbstractCfdiGenerator)
+CfdiGenerator / PagoGenerator / NominaGenerator
+    (facades fluidos, extienden AbstractCfdiGenerator)
     └── ComprobanteBuilder (orquesta el cálculo del CFDI base)
             ├── ConceptoImpuestosCalculator
             ├── ConceptoCalculator
@@ -199,9 +277,15 @@ CfdiGenerator / PagoGenerator (facades fluidos, extienden AbstractCfdiGenerator)
             ├── PagoImpuestosCalculator
             └── PagosTotalesCalculator (con conversión de moneda a MXN)
 
+    └── NominaBuilder (orquesta el cálculo del complemento de Nómina)
+            ├── NominaPercepcionesCalculator
+            ├── NominaDeduccionesCalculator
+            └── NominaTotalesCalculator
+
 XmlMapper          → Comprobante (modelo) → XML
     └── ComplementoRegistry → despacha cada complemento a su propio XmlMapper
-          └── PagosXmlMapper → pago20:Pagos
+          ├── PagosXmlMapper → pago20:Pagos
+          └── NominaXmlMapper → nomina12:Nomina
 
 CadenaOriginalService → XML → Cadena Original (XSLT oficial SAT)
 Sellador           → Cadena Original + CSD → Sello digital
@@ -216,8 +300,8 @@ se agregan implementando `ComplementoXmlMapperInterface` y registrándolos en
 ## Testing
 
 El paquete incluye tests unitarios y de integración. Los tests que requieren
-un CSD real (sellado, cadena original, complemento de Pagos) necesitan un
-CSD de **pruebas** del SAT:
+un CSD real (sellado, cadena original, complementos de Pagos y Nómina)
+necesitan un CSD de **pruebas** del SAT:
 
 ```bash
 composer install
@@ -230,7 +314,6 @@ instrucciones de cómo obtener un CSD de pruebas.
 ## Roadmap
 
 - [ ] Validación de la matriz completa `c_FormaPago` para el complemento de Pagos
-- [ ] Complemento de Nómina 1.2
 - [ ] Complemento de Carta Porte
 - [ ] Contrato `TimbradoInterface` (opcional, sin implementación propia)
 - [ ] Representación impresa (PDF)
