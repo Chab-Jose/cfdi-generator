@@ -5,6 +5,33 @@ Todos los cambios notables de este paquete se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.2.0] - 2026-09-15
+
+### Agregado
+- Complemento de Nómina 1.2 completo:
+  - Modelos de dominio (`Nomina`, `NominaEmisor`, `NominaReceptor`,
+    `NominaPercepcion`, `NominaDeduccion`, `NominaOtroPago`, `NominaIncapacidad`
+    y sub-nodos especiales: `HorasExtra`, `AccionesOTitulos`,
+    `JubilacionPensionRetiro`, `SeparacionIndemnizacion`, `SubsidioAlEmpleo`,
+    `CompensacionSaldosAFavor`) validados contra el XSLT oficial `nomina12.xslt`
+  - Cálculo de `TotalGravado`/`TotalExento`/`TotalSueldos` por percepciones
+    (`NominaPercepcionesCalculator`), incluyendo `TotalJubilacionPensionRetiro`
+    con la fórmula oficial de la guía de llenado del SAT (suma de
+    ImporteGravado+ImporteExento de percepciones con clave 039/044, con
+    exclusión mutua respecto a `TotalSueldos`)
+  - Cálculo de `TotalOtrasDeducciones`/`TotalImpuestosRetenidos`
+    (`NominaDeduccionesCalculator`), separando ISR (clave 002) del resto
+  - Agregación de totales a nivel raíz (`NominaTotalesCalculator`)
+  - Orquestación completa (`NominaBuilder`)
+  - Mapeo a XML del complemento (`NominaXmlMapper`), incluyendo atributos
+    con caracteres UTF-8 (`Antigüedad`, `Año`)
+- `NominaGenerator`: facade dedicado para CFDIs tipo "N" (Nómina), con
+  configuración automática de las reglas estructurales fijas del SAT
+  (`TipoDeComprobante=N`, `Moneda=MXN`, `FormaPago=99`, `MetodoPago=PUE`,
+  `Receptor.RegimenFiscalReceptor=605`, `Receptor.UsoCFDI=CN01`, Concepto
+  fijo `ClaveProdServ=84111505`) y propagación automática de los totales
+  del complemento al Concepto del Comprobante
+
 ## [1.1.0] - 2026-09-11
 
 ### Agregado
@@ -73,5 +100,6 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - Complementos del SAT (Nómina, Pagos, Carta Porte, INE, IEDU, Comercio Exterior)
 - Representación impresa (PDF)
 
+[1.2.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.0.0
