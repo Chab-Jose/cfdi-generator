@@ -22,7 +22,8 @@ sellar comprobantes fiscales conforme al esquema del SAT.
 - ✅ Carga de CSD (.cer/.key) con conversión DER→PEM incluida
 - ✅ **Complemento de Pagos (REP) 2.0**, con cálculo automático de impuestos agrupados y conversión de moneda a MXN en el nodo `Totales`
 - ✅ **Complemento de Nómina 1.2**, con cálculo automático de Percepciones/Deducciones/Totales, incluyendo la regla oficial de exclusión mutua entre Sueldos y Jubilación/Pensión/Retiro
-- ✅ Arquitectura extensible: cada pieza (cálculo, mapeo, sellado, validación) es sustituible vía contratos, y nuevos complementos se agregan sin modificar el core (`ComplementoRegistry`)
+- ✅ **Complemento de Carta Porte 3.1**, soportando los 4 medios de transporte (Autotransporte, Marítimo, Aéreo, Ferroviario) como complemento opcional y acoplable sobre un CFDI de Ingreso/Traslado, con generación automática de `IdCCP` y cálculo de `PesoBrutoTotal`/`NumTotalMercancias`/`TotalDistRec`
+- ✅ Arquitectura extensible: cada pieza (cálculo, mapeo, sellado, validación) es sustituible vía contratos, y nuevos complementos se agregan sin modificar el core (`ComplementoRegistry` para mapeo XML, `ComplementoBuilderRegistry` para cálculo)
 - ✅ Cobertura de tests amplia, incluyendo verificación criptográfica real del sello
 
 ## Requisitos
@@ -250,6 +251,92 @@ fijo del Comprobante (`ValorUnitario = TotalPercepciones + TotalOtrosPagos`,
 > a `TotalSueldos`), Separación e Indemnización, así como Subsidio al Empleo,
 > Compensación de Saldos a Favor e Incapacidades.
 
+## Complemento de Carta Porte 3.1
+
+A diferencia de Pagos y Nómina, Carta Porte **no es un tipo de comprobante
+propio** — es un complemento opcional que se adjunta a un CFDI normal
+(típicamente de Ingreso o Traslado) cuando además de facturar hay que
+amparar el transporte de mercancías. Por eso usa el facade genérico
+`CfdiGenerator`, con un método adicional `->cartaPorte()`, en vez de un
+facade dedicado:
+
+```php
+use ChabJose\CfdiGenerator\CfdiGenerator;
+use ChabJose\CfdiGenerator\Models\Complementos\CartaPorte\CartaPorte;
+use ChabJose\CfdiGenerator\Models\Complementos\CartaPorte\CartaPorteUbicacion;
+use ChabJose\CfdiGenerator\Models\Complementos\CartaPorte\CartaPorteMercancias;
+use ChabJose\CfdiGenerator\Models\Complementos\CartaPorte\CartaPorteMercancia;
+use ChabJose\CfdiGenerator\Models\Complementos\CartaPorte\Autotransporte\CartaPorteAutotransporte;
+use ChabJose\CfdiGenerator\Models\Complementos\CartaPorte\CartaPorteFiguraTransporte;
+use ChabJose\CfdiGenerator\Models\Complementos\CartaPorte\CartaPorteTipoFigura;
+
+$cartaPorte = new CartaPorte();
+$cartaPorte->TranspInternac = 'No';
+
+$origen = new CartaPorteUbicacion();
+$origen->TipoUbicacion = '01'; // Origen
+$origen->IDUbicacion = 'OR000001';
+$origen->RFCRemitenteDestinatario = 'XAXX010101000';
+$origen->FechaHoraSalidaLlegada = '2026-09-15T08:00:00';
+$cartaPorte->addUbicacion($origen);
+
+$destino = new CartaPorteUbicacion();
+$destino->TipoUbicacion = '02'; // Destino
+$destino->IDUbicacion = 'DE000001';
+$destino->RFCRemitenteDestinatario = 'XEXX010101000';
+$destino->FechaHoraSalidaLlegada = '2026-09-15T18:00:00';
+$destino->DistanciaRecorrida = 350.0;
+$cartaPorte->addUbicacion($destino);
+
+$mercancia = new CartaPorteMercancia();
+$mercancia->BienesTransp = '10101501';
+$mercancia->Descripcion = 'Mercancía de prueba';
+$mercancia->Cantidad = 10.0;
+$mercancia->ClaveUnidad = 'H87';
+$mercancia->PesoEnKg = 500.0;
+
+$mercancias = new CartaPorteMercancias();
+$mercancias->UnidadPeso = 'KGM';
+$mercancias->addMercancia($mercancia);
+$mercancias->Autotransporte = $autotransporte; // ver documentación por medio de transporte
+$cartaPorte->Mercancias = $mercancias;
+
+$figuraTransporte = new CartaPorteFiguraTransporte();
+$tipoFigura = new CartaPorteTipoFigura();
+$tipoFigura->TipoFigura = '01'; // Operador
+$tipoFigura->RFCFigura = 'XAXX010101000';
+$tipoFigura->NombreFigura = 'Juan Pérez';
+$figuraTransporte->addTipoFigura($tipoFigura);
+$cartaPorte->addFiguraTransporte($figuraTransporte);
+
+$xmlSellado = CfdiGenerator::make(sellador: $sellador)
+    ->comprobante(tipoDeComprobante: 'I', moneda: 'XXX', lugarExpedicion: '24090')
+    ->emisor(rfc: 'XAXX010101000', nombre: 'ACME SA DE CV', regimenFiscal: '601')
+    ->receptor(
+        rfc: 'XEXX010101000',
+        nombre: 'PUBLICO EN GENERAL',
+        domicilioFiscalReceptor: '24090',
+        regimenFiscalReceptor: '616',
+        usoCFDI: 'S01',
+    )
+    ->addConcepto($concepto)
+    ->cartaPorte($cartaPorte)
+    ->sellar($csd)
+    ->buildXml();
+```
+
+El paquete genera automáticamente `IdCCP` si no se asigna uno, valida que
+se haya definido **exactamente un** medio de transporte (Autotransporte,
+Marítimo, Aéreo o Ferroviario — vía `MedioTransporteValidator`, patrón
+Strategy) y calcula `PesoBrutoTotal`/`NumTotalMercancias` a partir de las
+Mercancías y `TotalDistRec` como la suma de `DistanciaRecorrida` únicamente
+de las Ubicaciones con `TipoUbicacion="02"` (Destino), conforme a la guía
+de llenado oficial del SAT.
+
+> ℹ️ Al ser un complemento opcional, un CFDI construido con `CfdiGenerator`
+> sin llamar a `->cartaPorte()` sigue funcionando exactamente igual que
+> antes — adjuntarlo no cambia el comportamiento del resto del comprobante.
+
 ## Alcance
 
 Este paquete cubre la **generación y sellado** de CFDI 4.0. Explícitamente
@@ -258,7 +345,7 @@ Este paquete cubre la **generación y sellado** de CFDI 4.0. Explícitamente
 | Fuera de alcance | Por qué |
 |---|---|
 | Timbrado (conexión a PAC) | Cada PAC tiene su propia API; conecta el tuyo implementando tu propio cliente sobre el XML que este paquete genera |
-| Otros complementos (Carta Porte, INE, IEDU, Comercio Exterior) | Roadmap futuro — ver [Roadmap](#roadmap) |
+| Otros complementos (INE, IEDU, Comercio Exterior) | Roadmap futuro — ver [Roadmap](#roadmap) |
 | Representación impresa (PDF) | Fuera del alcance de esta versión |
 
 ## Arquitectura
@@ -282,11 +369,25 @@ CfdiGenerator / PagoGenerator / NominaGenerator
             ├── NominaDeduccionesCalculator
             └── NominaTotalesCalculator
 
-XmlMapper          → Comprobante (modelo) → XML
-    └── ComplementoRegistry → despacha cada complemento a su propio XmlMapper
-          ├── PagosXmlMapper → pago20:Pagos
-          └── NominaXmlMapper → nomina12:Nomina
+    └── CartaPorteBuilder (orquesta el cálculo del complemento de Carta Porte)
+            ├── IdCcpGenerator (genera IdCCP si no se provee)
+            ├── MedioTransporteValidator (Strategy: exactamente 1 medio)
+            ├── CartaPorteMercanciasCalculator (PesoBrutoTotal, NumTotalMercancias)
+            └── CartaPorteTotalesCalculator (TotalDistRec)
 
+Despacho de complementos (multi-complemento, opcional por comprobante):
+    ├── ComplementoRegistry          → despacha cada complemento a su XmlMapper
+    │     ├── PagosXmlMapper         → pago20:Pagos
+    │     ├── NominaXmlMapper        → nomina12:Nomina
+    │     └── CartaPorteXmlMapper    → cartaporte31:CartaPorte
+    │           └── MedioTransporteXmlMapperInterface (Strategy por medio:
+    │               Autotransporte / Marítimo / Aéreo / Ferroviario)
+    └── ComplementoBuilderRegistry   → despacha cada complemento a su Builder
+          └── CartaPorteComplementoBuilderAdapter → CartaPorteBuilder
+          (devuelve null si el complemento no requiere cálculo, p. ej. Pagos/Nómina
+           ya calculan los suyos desde su propio facade dedicado)
+
+XmlMapper          → Comprobante (modelo) → XML
 CadenaOriginalService → XML → Cadena Original (XSLT oficial SAT)
 Sellador           → Cadena Original + CSD → Sello digital
 CsdLoader          → .cer/.key → CsdCredential
@@ -294,8 +395,10 @@ CsdLoader          → .cer/.key → CsdCredential
 
 Cada pieza está definida por un contrato en `Contracts/` — puedes sustituir
 cualquier implementación sin tocar el resto del paquete. Nuevos complementos
-se agregan implementando `ComplementoXmlMapperInterface` y registrándolos en
-`ComplementoRegistry`, sin modificar `XmlMapper`.
+se agregan implementando `ComplementoXmlMapperInterface` (mapeo a XML, vía
+`ComplementoRegistry`) y, si requieren cálculo propio, `ComplementoBuilderInterface`
+(vía `ComplementoBuilderRegistry`), sin modificar `XmlMapper` ni los facades
+existentes.
 
 ## Testing
 
@@ -314,14 +417,15 @@ instrucciones de cómo obtener un CSD de pruebas.
 ## Roadmap
 
 - [ ] Validación de la matriz completa `c_FormaPago` para el complemento de Pagos
-- [ ] Complemento de Carta Porte
+- [ ] Complementos adicionales (INE, IEDU, Comercio Exterior, Donatarias)
 - [ ] Contrato `TimbradoInterface` (opcional, sin implementación propia)
 - [ ] Representación impresa (PDF)
 
 ## Reportar un problema
 
-¿Encontraste un bug? Abre un Issue usando la plantilla correspondiente. 
-Para vulnerabilidades de seguridad, revisa SECURITY.md en vez de abrir un Issue público.
+¿Encontraste un bug? Abre un [Issue](../../issues/new/choose) usando la
+plantilla correspondiente. Para vulnerabilidades de seguridad, revisa
+[SECURITY.md](.github/SECURITY.md) en vez de abrir un Issue público.
 
 ## Contribuir
 
