@@ -10,6 +10,7 @@ use ChabJose\CfdiGenerator\Contracts\TimbradoInterface;
 use ChabJose\CfdiGenerator\Contracts\XmlMapperInterface;
 use ChabJose\CfdiGenerator\Domain\CsdCredential;
 use ChabJose\CfdiGenerator\Models\Comprobante;
+use ChabJose\CfdiGenerator\Models\ComprobanteComplemento;
 use ChabJose\CfdiGenerator\Models\ComprobanteEmisor;
 use ChabJose\CfdiGenerator\Models\ComprobanteReceptor;
 
@@ -114,5 +115,11 @@ abstract class AbstractCfdiGenerator
     public function xmlFinal(): string
     {
         return $this->xmlTimbrado ?? $this->buildXml();
+    }
+
+    protected function attachComplemento(string $nombre, object $complemento): void
+    {
+        $this->comprobante->Complemento ??= new ComprobanteComplemento();
+        $this->comprobante->Complemento->addComplemento($nombre, $complemento);
     }
 }
