@@ -5,6 +5,53 @@ Todos los cambios notables de este paquete se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.3.0] - 2026-10-07
+
+### Agregado
+- Complemento de Carta Porte 3.1 completo, cubriendo los 4 medios de
+  transporte desde el inicio:
+  - Modelos de dominio (`CartaPorte`, `CartaPorteUbicacion`,
+    `CartaPorteMercancias`/`CartaPorteMercancia`, `CartaPorteFiguraTransporte`/
+    `CartaPorteTipoFigura`, y sub-nodos por medio de transporte:
+    `Autotransporte` con `IdentificacionVehicular`/`Seguros`/`Remolque`,
+    `TransporteMaritimo` con `ContenedorMaritimo`/`Remolque`,
+    `TransporteAereo`, `TransporteFerroviario` con `DerechosDePaso`/`Carro`/
+    `ContenedorFerroviario`) validados contra el esquema oficial
+    `CartaPorte31.xsd`
+  - `MedioTransporteValidator` (patrón Strategy): valida que se haya
+    definido exactamente un medio de transporte entre Autotransporte,
+    Marítimo, Aéreo y Ferroviario
+  - `CartaPorteMercanciasCalculator`: calcula `PesoBrutoTotal` y
+    `NumTotalMercancias` a partir del listado de Mercancías
+  - `CartaPorteTotalesCalculator`: calcula `TotalDistRec` como la suma de
+    `DistanciaRecorrida` únicamente de las Ubicaciones con
+    `TipoUbicacion="02"` (Destino), conforme a la guía de llenado oficial
+    del SAT
+  - `IdCcpGenerator`: genera automáticamente `IdCCP` cuando no se provee
+    uno explícito, inyectable para pruebas deterministas
+  - Orquestación completa (`CartaPorteBuilder`): genera `IdCCP` → valida
+    medio de transporte → calcula Mercancías → calcula Totales, en ese
+    orden
+  - Mapeo a XML del complemento (`CartaPorteXmlMapper`), con despacho por
+    medio de transporte vía `MedioTransporteXmlMapperInterface` (Strategy:
+    `AutotransporteXmlMapper`, `MaritimoXmlMapper`, `AereoXmlMapper`,
+    `FerroviarioXmlMapper`)
+- `ComplementoBuilderInterface` y `ComplementoBuilderRegistry`: nuevo
+  mecanismo de despacho para el **cálculo** de complementos (paralelo a
+  `ComplementoRegistry`, que despacha el **mapeo a XML**), con la
+  diferencia deliberada de que `encontrarPara()` devuelve `null` en vez de
+  lanzar una excepción cuando un complemento no requiere cálculo propio
+- `CartaPorteComplementoBuilderAdapter`: adapta el `CartaPorteBuilderInterface`
+  fuertemente tipado al contrato genérico `ComplementoBuilderInterface`, sin
+  debilitar el tipado específico de Carta Porte
+- `CfdiGenerator::cartaPorte()`: nuevo método para adjuntar Carta Porte como
+  complemento **opcional** sobre un CFDI construido con el facade genérico
+  (a diferencia de Pagos/Nómina, Carta Porte no es un tipo de comprobante
+  propio, por lo que no tiene un facade dedicado)
+- `AbstractCfdiGenerator::attachComplemento()`: helper genérico para
+  adjuntar complementos opcionales/acoplables al `cfdi:Complemento` del
+  comprobante
+
 ## [1.2.0] - 2026-09-15
 
 ### Agregado
@@ -100,6 +147,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - Complementos del SAT (Nómina, Pagos, Carta Porte, INE, IEDU, Comercio Exterior)
 - Representación impresa (PDF)
 
+[1.3.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.3.0
 [1.2.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.0.0
