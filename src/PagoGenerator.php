@@ -25,6 +25,7 @@ use ChabJose\CfdiGenerator\Services\Complementos\Pagos\PagoImpuestosCalculator;
 use ChabJose\CfdiGenerator\Services\Complementos\Pagos\PagosBuilder;
 use ChabJose\CfdiGenerator\Services\Complementos\Pagos\PagosTotalesCalculator;
 use ChabJose\CfdiGenerator\Services\Complementos\Pagos\PagosXmlMapper;
+use ChabJose\CfdiGenerator\Services\Complementos\Pagos\PagoValidator;
 use ChabJose\CfdiGenerator\Services\FactorImpuestoResolver;
 use ChabJose\CfdiGenerator\Services\XmlMapper;
 
@@ -137,6 +138,7 @@ class PagoGenerator extends AbstractCfdiGenerator
             new DoctoRelacionadoImpuestosCalculator($factorResolver),
             new PagoImpuestosCalculator(),
             new PagosTotalesCalculator(),
+            new PagoValidator(),
         );
 
         $registry = new ComplementoRegistry();
