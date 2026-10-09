@@ -13,6 +13,7 @@ use ChabJose\CfdiGenerator\Services\Complementos\Pagos\DoctoRelacionadoImpuestos
 use ChabJose\CfdiGenerator\Services\Complementos\Pagos\PagoImpuestosCalculator;
 use ChabJose\CfdiGenerator\Services\Complementos\Pagos\PagosBuilder;
 use ChabJose\CfdiGenerator\Services\Complementos\Pagos\PagosTotalesCalculator;
+use ChabJose\CfdiGenerator\Services\Complementos\Pagos\PagoValidator;
 use ChabJose\CfdiGenerator\Services\FactorImpuestoResolver;
 use PHPUnit\Framework\TestCase;
 
@@ -31,6 +32,7 @@ class PagosBuilderTest extends TestCase
             new DoctoRelacionadoImpuestosCalculator($factorResolver),
             new PagoImpuestosCalculator(),
             new PagosTotalesCalculator(),
+            new PagoValidator(),
         );
     }
 

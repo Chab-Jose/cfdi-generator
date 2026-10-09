@@ -2,6 +2,8 @@
 
 namespace ChabJose\CfdiGenerator\Models;
 
+use ChabJose\CfdiGenerator\Catalogs\ObjetoImp;
+
 class ComprobanteConcepto
 {
     
@@ -24,7 +26,7 @@ class ComprobanteConcepto
     public string $Descripcion;
     public float $ValorUnitario = 0.0;
     public float $Importe = 0.0;
-    public string $ObjetoImp;
+    public string|ObjetoImp $ObjetoImp;
 
     public ?string $Unidad = null;
     public ?string $NoIdentificacion = null;

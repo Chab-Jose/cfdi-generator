@@ -2,6 +2,8 @@
 
 namespace ChabJose\CfdiGenerator\Models\Complementos\Pagos;
 
+use ChabJose\CfdiGenerator\Catalogs\FormaPago;
+
 class PagosPago
 {
     /** @var PagosPagoDoctoRelacionado[] */
@@ -10,7 +12,7 @@ class PagosPago
     public ?PagosPagoImpuestosP $ImpuestosP = null;
 
     public string $FechaPago;
-    public string $FormaDePagoP;
+    public string|FormaPago $FormaDePagoP;
     public string $MonedaP;
     public float $Monto = 0.0;
     
