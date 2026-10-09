@@ -16,12 +16,15 @@ class PagosBuilder implements PagosBuilderInterface
         private DoctoRelacionadoImpuestosCalculatorInterface $doctoRelacionadoImpuestosCalculator,
         private PagoImpuestosCalculatorInterface $pagoImpuestosCalculator,
         private PagosTotalesCalculatorInterface $pagosTotalesCalculator,
+        private PagoValidator $validator,
     ) {
     }
 
     public function build(Pagos $pagos): Pagos
     {
         foreach ($pagos->Pago as $pago) {
+            $this->validator->validar($pago);
+
             foreach ($pago->DoctoRelacionado as $docto) {
                 $this->doctoRelacionadoImpuestosCalculator->calcular($docto);
             }

@@ -5,6 +5,51 @@ Todos los cambios notables de este paquete se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.4.0] - 2026-10-09
+
+### Agregado
+- Validación completa de la matriz del catálogo `c_FormaPago` para el
+  complemento de Pagos, transcrita directo del catálogo oficial del SAT
+  (`catCFDI_V_4.xls`, hoja `c_FormaPago`), reemplazando la limitación
+  documentada desde v1.1.0:
+  - `FormaPagoMatriz`: fuente única de verdad con el patrón exacto de
+    `CtaOrdenante`/`CtaBeneficiaria` por código (CLABE 18 dígitos, tarjeta
+    16, tarjeta de servicios 15-16, dinero electrónico 10, etc.), qué
+    códigos admiten cuenta ordenante/beneficiaria (nota: el código `06`
+    —Dinero electrónico— es el único bancarizado que **no** admite cuenta
+    beneficiaria), y qué código (`03`) permite `TipoCadPago`
+  - `PagoValidator`: ahora valida, además de lo ya existente
+    (`TipoCadPago↔CertPago/CadPago/SelloPago`, `FormaDePagoP≠99`), que
+    `RfcEmisorCtaOrd`/`CtaOrdenante` y `RfcEmisorCtaBen`/`CtaBeneficiaria`
+    solo se registren cuando el código lo permite, que la cuenta cumpla el
+    patrón exacto de ese código, y que `NomBancoOrdExt` sea obligatorio
+    cuando `RfcEmisorCtaOrd` es el RFC genérico `XEXX010101000` (en los
+    códigos que lo requieren)
+  - `PagosBuilder` ahora recibe `PagoValidator` por inyección y valida
+    cada `Pago` antes de calcular sus impuestos
+- Catálogos del SAT pequeños y estables como enums nativos de PHP
+  (namespace `Catalogos/`): `RegimenFiscal`, `UsoCfdi`, `FormaPago`,
+  `MetodoPago`, `TipoDeComprobante`, `Impuesto`, `TipoFactor`, `ObjetoImp`,
+  `Exportacion` — opcionales, con `tryFrom()` nativo como validador y
+  `descripcion()` para los catálogos que lo requieren
+- Propiedades de modelos afectadas (`Comprobante::FormaPago/MetodoPago/
+  TipoDeComprobante`, `Emisor::RegimenFiscal`, `Receptor::RegimenFiscalReceptor/
+  UsoCFDI`, `ComprobanteConcepto::ObjetoImp`, `ComprobanteConceptoImpuestosTraslado/
+  Retencion::Impuesto/TipoFactor`, y sus equivalentes en Pagos) ahora aceptan
+  tanto el enum como el `string` crudo del SAT vía union types, sin romper
+  compatibilidad con código existente
+- `NormalizaValorCatalogoTrait`: normaliza un enum respaldado (`BackedEnum`)
+  a su `string` subyacente en un único punto compartido, usado por
+  `XmlAttributeHelpersTrait` (mapeo a XML) y por los calculadores que
+  agrupan por catálogo (`ComprobanteImpuestosCalculator`,
+  `PagoImpuestosCalculator`, `FactorImpuestoResolver`)
+
+### Decisión de diseño (documentada como limitación intencional)
+- Los catálogos grandes y volátiles del SAT (`c_ClaveProdServ`,
+  `c_ClaveUnidad`, códigos postales) **no** se incluyen en el paquete, para
+  no atar su ciclo de actualización al del paquete — ver sección
+  "Catálogos del SAT" en el README para el razonamiento completo
+
 ## [1.3.0] - 2026-10-07
 
 ### Agregado
@@ -147,6 +192,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - Complementos del SAT (Nómina, Pagos, Carta Porte, INE, IEDU, Comercio Exterior)
 - Representación impresa (PDF)
 
+[1.4.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.4.0
 [1.3.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.3.0
 [1.2.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.1.0

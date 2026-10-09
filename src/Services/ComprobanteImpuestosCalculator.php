@@ -10,9 +10,12 @@ use ChabJose\CfdiGenerator\Models\Comprobante;
 use ChabJose\CfdiGenerator\Models\ComprobanteImpuestos;
 use ChabJose\CfdiGenerator\Models\ComprobanteImpuestosRetencion;
 use ChabJose\CfdiGenerator\Models\ComprobanteImpuestosTraslado;
+use ChabJose\CfdiGenerator\Utils\Xml\NormalizaValorCatalogoTrait;
 
 class ComprobanteImpuestosCalculator implements ComprobanteImpuestosCalculatorInterface
 {
+    use NormalizaValorCatalogoTrait;
+
     public function calcular(Comprobante $comprobante): Comprobante
     {
         $trasladosAgrupados = [];
@@ -24,16 +27,19 @@ class ComprobanteImpuestosCalculator implements ComprobanteImpuestosCalculatorIn
             }
 
             foreach ($concepto->Impuestos->Traslados as $traslado) {
+                $impuesto = $this->valorEscalar($traslado->Impuesto);
+                $tipoFactor = $this->valorEscalar($traslado->TipoFactor);
+
                 $key = ImpuestoAgrupacionKey::paraTraslado(
-                    $traslado->Impuesto,
-                    $traslado->TipoFactor,
+                    $impuesto,
+                    $tipoFactor,
                     $traslado->TasaOCuota,
                 )->toString();
 
                 if (!isset($trasladosAgrupados[$key])) {
                     $trasladosAgrupados[$key] = new ComprobanteImpuestosTraslado();
-                    $trasladosAgrupados[$key]->Impuesto = $traslado->Impuesto;
-                    $trasladosAgrupados[$key]->TipoFactor = $traslado->TipoFactor;
+                    $trasladosAgrupados[$key]->Impuesto = $impuesto;
+                    $trasladosAgrupados[$key]->TipoFactor = $tipoFactor;
                     $trasladosAgrupados[$key]->TasaOCuota = $traslado->TasaOCuota;
                 }
 
@@ -45,11 +51,12 @@ class ComprobanteImpuestosCalculator implements ComprobanteImpuestosCalculatorIn
             }
 
             foreach ($concepto->Impuestos->Retenciones as $retencion) {
-                $key = ImpuestoAgrupacionKey::paraRetencion($retencion->Impuesto)->toString();
+                $impuesto = $this->valorEscalar($retencion->Impuesto);
+                $key = ImpuestoAgrupacionKey::paraRetencion($impuesto)->toString();
 
                 if (!isset($retencionesAgrupadas[$key])) {
                     $retencionesAgrupadas[$key] = new ComprobanteImpuestosRetencion();
-                    $retencionesAgrupadas[$key]->Impuesto = $retencion->Impuesto;
+                    $retencionesAgrupadas[$key]->Impuesto = $impuesto;
                 }
 
                 $retencionesAgrupadas[$key]->Importe += $retencion->Importe;
