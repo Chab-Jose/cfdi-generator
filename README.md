@@ -24,6 +24,7 @@ sellar comprobantes fiscales conforme al esquema del SAT.
 - ✅ **Complemento de Nómina 1.2**, con cálculo automático de Percepciones/Deducciones/Totales, incluyendo la regla oficial de exclusión mutua entre Sueldos y Jubilación/Pensión/Retiro
 - ✅ **Complemento de Carta Porte 3.1**, soportando los 4 medios de transporte (Autotransporte, Marítimo, Aéreo, Ferroviario) como complemento opcional y acoplable sobre un CFDI de Ingreso/Traslado, con generación automática de `IdCCP` y cálculo de `PesoBrutoTotal`/`NumTotalMercancias`/`TotalDistRec`
 - ✅ Arquitectura extensible: cada pieza (cálculo, mapeo, sellado, validación) es sustituible vía contratos, y nuevos complementos se agregan sin modificar el core (`ComplementoRegistry` para mapeo XML, `ComplementoBuilderRegistry` para cálculo)
+- ✅ **Catálogos del SAT** (`RegimenFiscal`, `UsoCfdi`, `FormaPago`, `MetodoPago`, `TipoDeComprobante`, `Impuesto`, `TipoFactor`, `ObjetoImp`, `Exportacion`) como enums nativos de PHP, opcionales — con autocompletado en el IDE, sin bloquear el uso del código crudo del SAT
 - ✅ Cobertura de tests amplia, incluyendo verificación criptográfica real del sello
 
 ## Requisitos
@@ -167,13 +168,15 @@ complemento (impuestos por documento relacionado → impuestos agregados por
 pago → totales del complemento), incluyendo conversión automática a MXN
 cuando un pago viene en moneda extranjera.
 
-> ⚠️ **Reglas cruzadas del SAT pendientes**: el SAT publica un catálogo
-> (`c_FormaPago`) con reglas de obligatoriedad de ciertos campos (cuentas
-> bancarias, certificación SPEI) según la forma de pago. Este paquete valida
-> las reglas cruzadas que están documentadas de forma clara y verificable
-> (ver `PagoValidator`), pero **no valida aún la matriz completa por cada
-> código de forma de pago** — esa validación queda pendiente hasta
-> incorporar el catálogo oficial completo.
+> ✅ **Validación completa del catálogo `c_FormaPago`**: `PagoValidator`
+> valida, por cada `FormaDePagoP`, si `RfcEmisorCtaOrd`/`CtaOrdenante` y
+> `RfcEmisorCtaBen`/`CtaBeneficiaria` aplican o no (ej. el código `06`
+> —Dinero electrónico— nunca admite cuenta beneficiaria, aunque sí admite
+> ordenante), el patrón exacto de cada cuenta (CLABE, tarjeta, etc.), la
+> obligatoriedad de `NomBancoOrdExt` cuando el RFC es el genérico
+> `XEXX010101000`, y que `TipoCadPago`/`CertPago`/`CadPago`/`SelloPago`
+> solo apliquen a transferencias (`03`) — todo transcrito directo del
+> catálogo oficial del SAT (`FormaPagoMatriz`), no inferido.
 
 ## Complemento de Nómina 1.2
 
@@ -337,6 +340,47 @@ de llenado oficial del SAT.
 > sin llamar a `->cartaPorte()` sigue funcionando exactamente igual que
 > antes — adjuntarlo no cambia el comportamiento del resto del comprobante.
 
+## Catálogos del SAT
+
+El paquete incluye como enums nativos de PHP (`enum ... : string`) los
+catálogos del SAT que son **pequeños y estables** — no cambian con el SAT
+publicando decenas de miles de filas, sino vía Resolución Miscelánea Fiscal
+con poca frecuencia:
+
+`RegimenFiscal`, `UsoCfdi`, `FormaPago`, `MetodoPago`, `TipoDeComprobante`,
+`Impuesto`, `TipoFactor`, `ObjetoImp`, `Exportacion` — namespace
+`ChabJose\CfdiGenerator\Catalogos`.
+
+> ℹ️ **Por qué no catálogos grandes** (`c_ClaveProdServ` ~52,000 claves,
+> `c_ClaveUnidad` ~3,000+, códigos postales, etc.): embeberlos ataría las
+> actualizaciones de esos catálogos al ciclo de releases de este paquete, y
+> obligaría a cargar listas enormes en memoria aunque no se necesiten. Para
+> esos, conecta tu propia fuente (base de datos, caché, o un paquete
+> dedicado como `phpcfdi/sat-catalogos`).
+
+**Uso — son completamente opcionales**, las propiedades de los modelos
+siguen aceptando el string crudo del SAT:
+
+```php
+use ChabJose\CfdiGenerator\Catalogos\FormaPago;
+
+// Con autocompletado del IDE, cero errores de tipeo:
+$comprobante->FormaPago = FormaPago::TransferenciaElectronicaDeFondos;
+
+// O el código crudo — por ejemplo, si el SAT publicó una clave nueva que
+// el enum todavía no incluye, o si el valor viene de otro sistema (ERP, POS):
+$comprobante->FormaPago = '03';
+
+// Validar un código que no sabes si existe en el catálogo:
+if (FormaPago::tryFrom($codigo) === null) {
+    throw new \InvalidArgumentException("FormaPago inválido: {$codigo}");
+}
+```
+
+El paquete normaliza internamente (en el mapeo a XML y en los cálculos que
+agrupan por catálogo, como Impuestos) para que ambas formas — enum o
+string — funcionen de manera idéntica en cualquier punto del flujo.
+
 ## Alcance
 
 Este paquete cubre la **generación y sellado** de CFDI 4.0. Explícitamente
@@ -416,7 +460,6 @@ instrucciones de cómo obtener un CSD de pruebas.
 
 ## Roadmap
 
-- [ ] Validación de la matriz completa `c_FormaPago` para el complemento de Pagos
 - [ ] Complementos adicionales (INE, IEDU, Comercio Exterior, Donatarias)
 - [ ] Contrato `TimbradoInterface` (opcional, sin implementación propia)
 - [ ] Representación impresa (PDF)
