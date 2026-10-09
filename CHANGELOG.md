@@ -192,7 +192,6 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - Complementos del SAT (Nómina, Pagos, Carta Porte, INE, IEDU, Comercio Exterior)
 - Representación impresa (PDF)
 
-[1.5.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.5.0
 [1.4.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.4.0
 [1.3.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.3.0
 [1.2.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.2.0
