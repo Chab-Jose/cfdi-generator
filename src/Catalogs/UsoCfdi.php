@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ChabJose\CfdiGenerator\Catalogos;
+namespace ChabJose\CfdiGenerator\Catalogs;
 
 /** Catálogo c_UsoCFDI (CFDI 4.0). */
 enum UsoCfdi: string

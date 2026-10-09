@@ -2,6 +2,8 @@
 
 namespace ChabJose\CfdiGenerator\Models\Complementos\Pagos;
 
+use ChabJose\CfdiGenerator\Catalogs\ObjetoImp;
+
 class PagosPagoDoctoRelacionado
 {
     public ?PagosPagoDoctoRelacionadoImpuestosDR $ImpuestosDR = null;
@@ -12,7 +14,7 @@ class PagosPagoDoctoRelacionado
     public float $ImpSaldoAnt = 0.0;
     public float $ImpPagado = 0.0;
     public float $ImpSaldoInsoluto = 0.0;
-    public string $ObjetoImpDR;
+    public string|ObjetoImp $ObjetoImpDR;
 
     public ?string $Serie = null;
     public ?string $Folio = null;

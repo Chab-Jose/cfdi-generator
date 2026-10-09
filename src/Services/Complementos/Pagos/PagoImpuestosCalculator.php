@@ -10,9 +10,12 @@ use ChabJose\CfdiGenerator\Models\Complementos\Pagos\PagosPago;
 use ChabJose\CfdiGenerator\Models\Complementos\Pagos\PagosPagoImpuestosP;
 use ChabJose\CfdiGenerator\Models\Complementos\Pagos\PagosPagoImpuestosPRetencionP;
 use ChabJose\CfdiGenerator\Models\Complementos\Pagos\PagosPagoImpuestosPTrasladoP;
+use ChabJose\CfdiGenerator\Utils\Xml\NormalizaValorCatalogoTrait;
 
 class PagoImpuestosCalculator implements PagoImpuestosCalculatorInterface
 {
+    use NormalizaValorCatalogoTrait;
+
     public function calcular(PagosPago $pago): PagosPago
     {
         $trasladosAgrupados = [];
@@ -24,16 +27,19 @@ class PagoImpuestosCalculator implements PagoImpuestosCalculatorInterface
             }
 
             foreach ($docto->ImpuestosDR->TrasladosDR as $traslado) {
+                $impuesto = $this->valorEscalar($traslado->ImpuestoDR);
+                $tipoFactor = $this->valorEscalar($traslado->TipoFactorDR);
+
                 $key = ImpuestoAgrupacionKey::paraTraslado(
-                    $traslado->ImpuestoDR,
-                    $traslado->TipoFactorDR,
+                    $impuesto,
+                    $tipoFactor,
                     $traslado->TasaOCuotaDR,
                 )->toString();
 
                 if (!isset($trasladosAgrupados[$key])) {
                     $trasladosAgrupados[$key] = new PagosPagoImpuestosPTrasladoP();
-                    $trasladosAgrupados[$key]->ImpuestoP = $traslado->ImpuestoDR;
-                    $trasladosAgrupados[$key]->TipoFactorP = $traslado->TipoFactorDR;
+                    $trasladosAgrupados[$key]->ImpuestoP = $impuesto;
+                    $trasladosAgrupados[$key]->TipoFactorP = $tipoFactor;
                     $trasladosAgrupados[$key]->TasaOCuotaP = $traslado->TasaOCuotaDR;
                 }
 
@@ -45,11 +51,12 @@ class PagoImpuestosCalculator implements PagoImpuestosCalculatorInterface
             }
 
             foreach ($docto->ImpuestosDR->RetencionesDR as $retencion) {
-                $key = ImpuestoAgrupacionKey::paraRetencion($retencion->ImpuestoDR)->toString();
+                $impuesto = $this->valorEscalar($retencion->ImpuestoDR);
+                $key = ImpuestoAgrupacionKey::paraRetencion($impuesto)->toString();
 
                 if (!isset($retencionesAgrupadas[$key])) {
                     $retencionesAgrupadas[$key] = new PagosPagoImpuestosPRetencionP();
-                    $retencionesAgrupadas[$key]->ImpuestoP = $retencion->ImpuestoDR;
+                    $retencionesAgrupadas[$key]->ImpuestoP = $impuesto;
                 }
 
                 $retencionesAgrupadas[$key]->ImporteP += $retencion->ImporteDR;
