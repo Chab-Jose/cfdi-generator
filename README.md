@@ -23,7 +23,8 @@ sellar comprobantes fiscales conforme al esquema del SAT.
 - ✅ **Complemento de Pagos (REP) 2.0**, con cálculo automático de impuestos agrupados y conversión de moneda a MXN en el nodo `Totales`
 - ✅ **Complemento de Nómina 1.2**, con cálculo automático de Percepciones/Deducciones/Totales, incluyendo la regla oficial de exclusión mutua entre Sueldos y Jubilación/Pensión/Retiro
 - ✅ **Complemento de Carta Porte 3.1**, soportando los 4 medios de transporte (Autotransporte, Marítimo, Aéreo, Ferroviario) como complemento opcional y acoplable sobre un CFDI de Ingreso/Traslado, con generación automática de `IdCCP` y cálculo de `PesoBrutoTotal`/`NumTotalMercancias`/`TotalDistRec`
-- ✅ Arquitectura extensible: cada pieza (cálculo, mapeo, sellado, validación) es sustituible vía contratos, y nuevos complementos se agregan sin modificar el core (`ComplementoRegistry` para mapeo XML, `ComplementoBuilderRegistry` para cálculo)
+- ✅ **Complemento de Hidrocarburos y Petrolíferos (HidroYPetro) 1.0**, a nivel Concepto, con validación contra los catálogos oficiales del SAT (permisos, claves y subproductos)
+- ✅ Arquitectura extensible: cada pieza (cálculo, mapeo, sellado, validación) es sustituible vía contratos, y nuevos complementos, tanto de Comprobante como de Concepto, se agregan sin modificar el core (`ComplementoRegistry` para mapeo XML, `ComplementoBuilderRegistry` y `ComplementoConceptoBuilderRegistry` para cálculo y validación)
 - ✅ **Catálogos del SAT** (`RegimenFiscal`, `UsoCfdi`, `FormaPago`, `MetodoPago`, `TipoDeComprobante`, `Impuesto`, `TipoFactor`, `ObjetoImp`, `Exportacion`) como enums nativos de PHP, opcionales — con autocompletado en el IDE, sin bloquear el uso del código crudo del SAT
 - ✅ Cobertura de tests amplia, incluyendo verificación criptográfica real del sello
 
@@ -340,6 +341,57 @@ de llenado oficial del SAT.
 > sin llamar a `->cartaPorte()` sigue funcionando exactamente igual que
 > antes — adjuntarlo no cambia el comportamiento del resto del comprobante.
 
+## Complemento HidroYPetro 1.0 (Hidrocarburos y Petrolíferos)
+
+A diferencia de Pagos, Nómina y Carta Porte, HidroYPetro vive **dentro del
+Concepto** (`cfdi:Concepto/cfdi:ComplementoConcepto`), no en
+`cfdi:Complemento`. Aplica a conceptos de combustible (diésel, gasolina
+regular y gasolina premium) en comprobantes de Ingreso o Egreso. Se adjunta
+directo al Concepto:
+
+```php
+use ChabJose\CfdiGenerator\Catalogs\ClaveHYP;
+use ChabJose\CfdiGenerator\Catalogs\SubProductoHYP;
+use ChabJose\CfdiGenerator\Catalogs\TipoPermiso;
+use ChabJose\CfdiGenerator\Models\Complementos\HidroYPetro\HidroYPetro;
+
+$concepto = new ComprobanteConcepto();
+$concepto->ClaveProdServ = '15101505';   // debe coincidir con ClaveHYP
+$concepto->ClaveUnidad = 'LTR';          // obligatoria para este complemento
+$concepto->Descripcion = 'Diésel automotriz';
+$concepto->Cantidad = 100.0;
+$concepto->ValorUnitario = 25.0;
+$concepto->ObjetoImp = '02';
+
+$concepto->addComplementoConcepto(new HidroYPetro(
+    TipoPermiso::Per01,
+    'PL/12345/EXP/ES/2026',
+    ClaveHYP::CombustibleDiesel,
+    SubProductoHYP::Sp18,
+));
+
+$cfdi->addConcepto($concepto);
+```
+
+Los tres campos de catálogo también aceptan el código crudo del SAT
+(`'PER01'`, `'15101505'`, `'SP18'`). Al construir el comprobante, el paquete
+valida:
+
+- el comprobante es de tipo Ingreso (`I`) o Egreso (`E`)
+- el Concepto no tiene `ACuentaTerceros`
+- `ClaveHYP` es igual al `ClaveProdServ` del Concepto
+- `ClaveUnidad` del Concepto es `LTR`
+- `SubProductoHYP` corresponde a la `ClaveHYP` indicada (cada clave admite
+  solo ciertos subproductos)
+- `NumeroPermiso` cumple el patrón oficial de su `TipoPermiso`
+
+Si alguna regla falla se lanza `HidroYPetroValidationException` con el motivo.
+El `xmlns` y el `schemaLocation` del complemento se declaran
+automáticamente en la raíz del comprobante.
+
+> ℹ️ El SAT todavía no lo soporta en su portal de facturación gratuito; este
+> paquete lo genera conforme al XSLT y a los catálogos oficiales publicados.
+
 ## Catálogos del SAT
 
 El paquete incluye como enums nativos de PHP (`enum ... : string`) los
@@ -348,8 +400,9 @@ publicando decenas de miles de filas, sino vía Resolución Miscelánea Fiscal
 con poca frecuencia:
 
 `RegimenFiscal`, `UsoCfdi`, `FormaPago`, `MetodoPago`, `TipoDeComprobante`,
-`Impuesto`, `TipoFactor`, `ObjetoImp`, `Exportacion` — namespace
-`ChabJose\CfdiGenerator\Catalogos`.
+`Impuesto`, `TipoFactor`, `ObjetoImp`, `Exportacion`, y los del complemento
+HidroYPetro (`TipoPermiso`, `ClaveHYP`, `SubProductoHYP`) — namespace
+`ChabJose\CfdiGenerator\Catalogs`.
 
 > ℹ️ **Por qué no catálogos grandes** (`c_ClaveProdServ` ~52,000 claves,
 > `c_ClaveUnidad` ~3,000+, códigos postales, etc.): embeberlos ataría las
@@ -362,7 +415,7 @@ con poca frecuencia:
 siguen aceptando el string crudo del SAT:
 
 ```php
-use ChabJose\CfdiGenerator\Catalogos\FormaPago;
+use ChabJose\CfdiGenerator\Catalogs\FormaPago;
 
 // Con autocompletado del IDE, cero errores de tipeo:
 $comprobante->FormaPago = FormaPago::TransferenciaElectronicaDeFondos;
@@ -430,6 +483,13 @@ Despacho de complementos (multi-complemento, opcional por comprobante):
           └── CartaPorteComplementoBuilderAdapter → CartaPorteBuilder
           (devuelve null si el complemento no requiere cálculo, p. ej. Pagos/Nómina
            ya calculan los suyos desde su propio facade dedicado)
+
+Despacho de complementos de Concepto (mismo patrón, instancias propias):
+    ├── ComplementoRegistry (de concepto)       → despacha a su XmlMapper
+    │     └── HidroYPetroXmlMapper              → hidrocarburospetroliferos:HidroYPetro
+    └── ComplementoConceptoBuilderRegistry      → despacha a su Builder, con el
+          │                                       Concepto y el Comprobante como contexto
+          └── HidroYPetroComplementoBuilderAdapter → HidroYPetroValidator (HidroYPetroMatriz)
 
 XmlMapper          → Comprobante (modelo) → XML
 CadenaOriginalService → XML → Cadena Original (XSLT oficial SAT)

@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace ChabJose\CfdiGenerator\Tests\Services;
 
+use ChabJose\CfdiGenerator\Catalogs\ClaveHYP;
+use ChabJose\CfdiGenerator\Catalogs\SubProductoHYP;
+use ChabJose\CfdiGenerator\Catalogs\TipoPermiso;
+use ChabJose\CfdiGenerator\Models\Complementos\HidroYPetro\HidroYPetro;
 use ChabJose\CfdiGenerator\Models\Comprobante;
 use ChabJose\CfdiGenerator\Models\ComprobanteConcepto;
 use ChabJose\CfdiGenerator\Models\ComprobanteEmisor;
 use ChabJose\CfdiGenerator\Models\ComprobanteReceptor;
+use ChabJose\CfdiGenerator\Services\Complementos\ComplementoRegistry;
+use ChabJose\CfdiGenerator\Services\Complementos\HidroYPetro\HidroYPetroXmlMapper;
 use ChabJose\CfdiGenerator\Services\XmlMapper;
 use PHPUnit\Framework\TestCase;
 
@@ -221,6 +227,93 @@ class XmlMapperTest extends TestCase
         $this->mapper->toXml($comprobante);
     }
 
+    public function testMapeaComplementoConceptoConHidroYPetro(): void
+    {
+        // Arrange
+        $comprobante = $this->comprobanteMinimo();
+        $comprobante->Conceptos = [$this->conceptoConHidroYPetro()];
+
+        // Act
+        $xml = $this->mapperConHidroYPetro()->toXml($comprobante);
+        $xpath = $this->xpathDe($xml);
+
+        // Assert
+        $ruta = '/cfdi:Comprobante/cfdi:Conceptos/cfdi:Concepto/cfdi:ComplementoConcepto/hyp:HidroYPetro';
+        $this->assertSame(1, $xpath->query($ruta)->length);
+        $this->assertSame('1.0', $this->atributo($xpath, $ruta, 'Version'));
+        $this->assertSame('PER01', $this->atributo($xpath, $ruta, 'TipoPermiso'));
+        $this->assertSame('PL/12345/EXP/ES/2026', $this->atributo($xpath, $ruta, 'NumeroPermiso'));
+        $this->assertSame('15101505', $this->atributo($xpath, $ruta, 'ClaveHYP'));
+        $this->assertSame('SP18', $this->atributo($xpath, $ruta, 'SubProductoHYP'));
+    }
+
+    public function testDeclaraNamespaceDeHidroYPetroEnLaRaiz(): void
+    {
+        $comprobante = $this->comprobanteMinimo();
+        $comprobante->Conceptos = [$this->conceptoConHidroYPetro()];
+
+        $xml = $this->mapperConHidroYPetro()->toXml($comprobante);
+        $raiz = $this->xpathDe($xml)->query('/cfdi:Comprobante')->item(0);
+
+        $this->assertSame(
+            'http://www.sat.gob.mx/hidrocarburospetroliferos',
+            $raiz->lookupNamespaceUri('hidrocarburospetroliferos'),
+        );
+        $this->assertStringContainsString(
+            'http://www.sat.gob.mx/hidrocarburospetroliferos',
+            $raiz->getAttributeNS('http://www.w3.org/2001/XMLSchema-instance', 'schemaLocation'),
+        );
+    }
+
+    public function testNoDuplicaSchemaLocationConVariosConceptosConHidroYPetro(): void
+    {
+        $comprobante = $this->comprobanteMinimo();
+        $comprobante->Conceptos = [$this->conceptoConHidroYPetro(), $this->conceptoConHidroYPetro()];
+
+        $xml = $this->mapperConHidroYPetro()->toXml($comprobante);
+        $xpath = $this->xpathDe($xml);
+        $schemaLocation = $xpath->query('/cfdi:Comprobante')->item(0)
+            ->getAttributeNS('http://www.w3.org/2001/XMLSchema-instance', 'schemaLocation');
+
+        $this->assertSame(2, $xpath->query('//hyp:HidroYPetro')->length);
+        $this->assertSame(1, substr_count($schemaLocation, 'hidrocarburospetroliferos.xsd'));
+    }
+
+    public function testNoGeneraComplementoConceptoSiElConceptoNoLoTiene(): void
+    {
+        $comprobante = $this->comprobanteMinimo();
+        $comprobante->Conceptos = [$this->conceptoSimple('01010101', 'Sin complemento')];
+
+        $xml = $this->mapperConHidroYPetro()->toXml($comprobante);
+
+        $this->assertSame(0, $this->xpathDe($xml)->query('//cfdi:ComplementoConcepto')->length);
+    }
+
+    public function testConceptosApareceUnaSolaVezEnElComprobante(): void
+    {
+        // Regresión: map() no debe anexar cfdi:Conceptos dos veces
+        $comprobante = $this->comprobanteMinimo();
+        $comprobante->Conceptos = [
+            $this->conceptoSimple('01010101', 'Uno'),
+            $this->conceptoSimple('02020202', 'Dos'),
+        ];
+
+        $xpath = $this->xpathDe($this->mapper->toXml($comprobante));
+
+        $this->assertSame(1, $xpath->query('/cfdi:Comprobante/cfdi:Conceptos')->length);
+    }
+
+    public function testLanzaExcepcionSiNoHayMapperRegistradoParaElComplementoDeConcepto(): void
+    {
+        $comprobante = $this->comprobanteMinimo();
+        $comprobante->Conceptos = [$this->conceptoConHidroYPetro()];
+
+        $this->expectException(\Throwable::class);
+
+        // $this->mapper se creó sin registry de concepto
+        $this->mapper->toXml($comprobante);
+    }
+
     // --- Helpers ---
 
     private function comprobanteMinimo(): Comprobante
@@ -265,6 +358,7 @@ class XmlMapperTest extends TestCase
 
         $xpath = new \DOMXPath($doc);
         $xpath->registerNamespace('cfdi', 'http://www.sat.gob.mx/cfd/4');
+        $xpath->registerNamespace('hyp', 'http://www.sat.gob.mx/hidrocarburospetroliferos'); // <- nuevo
 
         return $xpath;
     }
@@ -274,5 +368,26 @@ class XmlMapperTest extends TestCase
         $nodo = $xpath->query($query)->item(0);
 
         return $nodo?->getAttribute($atributo);
+    }
+
+    private function mapperConHidroYPetro(): XmlMapper
+    {
+        $registryConcepto = (new ComplementoRegistry())->registrar(new HidroYPetroXmlMapper());
+
+        return new XmlMapper(new ComplementoRegistry(), $registryConcepto);
+    }
+
+    private function conceptoConHidroYPetro(): ComprobanteConcepto
+    {
+        $concepto = $this->conceptoSimple('15101505', 'Diésel automotriz');
+        $concepto->ClaveUnidad = 'LTR';
+
+        $complemento = new HidroYPetro();
+        $complemento->TipoPermiso = TipoPermiso::Per01;
+        $complemento->NumeroPermiso = 'PL/12345/EXP/ES/2026';
+        $complemento->ClaveHYP = ClaveHYP::CombustibleDiesel;
+        $complemento->SubProductoHYP = SubProductoHYP::Sp18;
+
+        return $concepto->addComplementoConcepto($complemento);
     }
 }
