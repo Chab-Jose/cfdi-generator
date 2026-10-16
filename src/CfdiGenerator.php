@@ -24,7 +24,10 @@ use ChabJose\CfdiGenerator\Services\Complementos\CartaPorte\MediosTransporte\Fer
 use ChabJose\CfdiGenerator\Services\Complementos\CartaPorte\MediosTransporte\MaritimoXmlMapper;
 use ChabJose\CfdiGenerator\Services\Complementos\CartaPorte\MedioTransporteValidator;
 use ChabJose\CfdiGenerator\Services\Complementos\ComplementoBuilderRegistry;
+use ChabJose\CfdiGenerator\Services\Complementos\ComplementoConceptoBuilderRegistry;
 use ChabJose\CfdiGenerator\Services\Complementos\ComplementoRegistry;
+use ChabJose\CfdiGenerator\Services\Complementos\HidroYPetro\HidroYPetroComplementoBuilderAdapter;
+use ChabJose\CfdiGenerator\Services\Complementos\HidroYPetro\HidroYPetroXmlMapper;
 use ChabJose\CfdiGenerator\Services\ComprobanteBuilder;
 use ChabJose\CfdiGenerator\Services\ComprobanteImpuestosCalculator;
 use ChabJose\CfdiGenerator\Services\ComprobanteTotalesCalculator;
@@ -122,12 +125,19 @@ class CfdiGenerator extends AbstractCfdiGenerator
     {
         $factorResolver = new FactorImpuestoResolver();
 
+        $registryConcepto = new ComplementoRegistry();
+        $registryConcepto->registrar(new HidroYPetroXmlMapper());
+
+        $builderRegistryConcepto = new ComplementoConceptoBuilderRegistry();
+        $builderRegistryConcepto->registrar(new HidroYPetroComplementoBuilderAdapter());
+
         $comprobanteBuilder = new ComprobanteBuilder(
             new ConceptoImpuestosCalculator($factorResolver),
             new ConceptoCalculator(),
             new ComprobanteImpuestosCalculator(),
             new ComprobanteTotalesCalculator(),
             $validador,
+            $builderRegistryConcepto
         );
 
         $xmlComplementoRegistry = new ComplementoRegistry();
@@ -137,7 +147,6 @@ class CfdiGenerator extends AbstractCfdiGenerator
             new AereoXmlMapper(),
             new FerroviarioXmlMapper(),
         ]));
-
 
         $complementoBuilderRegistry = new ComplementoBuilderRegistry();
         $complementoBuilderRegistry->registrar(new CartaPorteComplementoBuilderAdapter(
@@ -149,6 +158,11 @@ class CfdiGenerator extends AbstractCfdiGenerator
             )
         ));
 
-        return new self($comprobanteBuilder, new XmlMapper($xmlComplementoRegistry), $complementoBuilderRegistry, $sellador);
+        return new self(
+            $comprobanteBuilder, 
+            new XmlMapper($xmlComplementoRegistry, $registryConcepto), 
+            $complementoBuilderRegistry, 
+            $sellador
+        );
     }
 }

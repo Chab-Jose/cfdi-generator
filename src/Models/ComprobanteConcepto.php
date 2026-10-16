@@ -49,4 +49,16 @@ class ComprobanteConcepto
         $this->InformacionAduanera[] = $informacionAduanera;
         return $this;
     }
+
+    public function addComplementoConcepto(object $complemento): self
+    {
+        $this->ComplementoConcepto ??= new ComprobanteConceptoComplementoConcepto();
+
+        $this->ComplementoConcepto->addComplementoConcepto(
+            (new \ReflectionClass($complemento))->getShortName(),
+            $complemento,
+        );
+
+        return $this;
+    }
 }

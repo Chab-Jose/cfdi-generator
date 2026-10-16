@@ -36,8 +36,15 @@ class XmlMapper implements XmlMapperInterface
 
     private \DOMDocument $dom;
 
+    /** @var string[] */
+    private array $schemaLocations = [];
+
+    /** @var array<string, string> prefijo => uri */
+    private array $xmlnsDeclaraciones = [];
+
     public function __construct(
         private ComplementoRegistry $complementoRegistry = new ComplementoRegistry(),
+        private ComplementoRegistry $complementoConceptoRegistry = new ComplementoRegistry(),
     ) {}
 
     public function toXml(Comprobante $comprobante): string
@@ -49,13 +56,11 @@ class XmlMapper implements XmlMapperInterface
     {
         $this->dom = new \DOMDocument('1.0', 'UTF-8');
         $this->dom->formatOutput = false;
-
+        $this->schemaLocations = [self::XSD_LOCATION];
+        $this->xmlnsDeclaraciones = [];
 
         $root = $this->crearNodoComprobante($comprobante);
         $this->dom->appendChild($root);
-
-        // Orden exigido por el XSD 4.0:
-        // InformacionGlobal? , CfdiRelacionados? , Emisor, Receptor, Conceptos, Impuestos?, Complemento?, Addenda?
 
         if ($comprobante->InformacionGlobal !== null) {
             $root->appendChild($this->crearNodoInformacionGlobal($comprobante->InformacionGlobal));
@@ -73,13 +78,14 @@ class XmlMapper implements XmlMapperInterface
             $receptorNode = $this->crearNodoReceptor($comprobante->Receptor);
             $root->appendChild($receptorNode);
         }
+
         $root->appendChild($this->crearNodoConceptos($comprobante->Conceptos));
 
         if ($comprobante->Impuestos !== null) {
             $root->appendChild($this->crearNodoImpuestos($comprobante->Impuestos));
         }
 
-        $schemaLocations = [self::XSD_LOCATION];
+        // (se elimina la línea: $schemaLocations = [self::XSD_LOCATION];)
 
         if ($comprobante->Complemento !== null && !empty($comprobante->Complemento->Any)) {
             $complementoNode = $this->dom->createElementNS(self::NS_CFDI, 'cfdi:Complemento');
@@ -88,12 +94,8 @@ class XmlMapper implements XmlMapperInterface
                 $mapper = $this->complementoRegistry->encontrarPara($obj);
                 $complementoNode->appendChild($mapper->toXmlElement($this->dom, $obj));
 
-                $root->setAttributeNS(
-                    'http://www.w3.org/2000/xmlns/',
-                    'xmlns:' . $mapper->namespacePrefix(),
-                    $mapper->namespaceUri(),
-                );
-                $schemaLocations[] = $mapper->schemaLocation();
+                $this->xmlnsDeclaraciones[$mapper->namespacePrefix()] = $mapper->namespaceUri();
+                $this->schemaLocations[] = $mapper->schemaLocation();
             }
 
             $root->appendChild($complementoNode);
@@ -103,7 +105,15 @@ class XmlMapper implements XmlMapperInterface
             $root->appendChild($this->crearNodoAddenda($comprobante->Addenda));
         }
 
-        $root->setAttributeNS(self::NS_XSI, 'xsi:schemaLocation', implode(' ', $schemaLocations));
+        foreach ($this->xmlnsDeclaraciones as $prefix => $uri) {
+            $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:' . $prefix, $uri);
+        }
+
+        $root->setAttributeNS(
+            self::NS_XSI,
+            'xsi:schemaLocation',
+            implode(' ', array_unique($this->schemaLocations)),
+        );
 
         return $this->dom;
     }
@@ -278,13 +288,15 @@ class XmlMapper implements XmlMapperInterface
     private function crearNodoComplementoConcepto(object $complementoConcepto): \DOMElement
     {
         $nodo = $this->dom->createElementNS(self::NS_CFDI, 'cfdi:ComplementoConcepto');
-        // Cada entrada de Any ya debería ser resuelta por su propio handler de complemento
-        // (ver ComplementoRegistry) y devolver un \DOMElement listo para anexar.
-        foreach ($complementoConcepto->Any as $elemento) {
-            if ($elemento instanceof \DOMElement) {
-                $nodo->appendChild($this->dom->importNode($elemento, true));
-            }
+
+        foreach ($complementoConcepto->Any as $obj) {
+            $mapper = $this->complementoConceptoRegistry->encontrarPara($obj);
+            $nodo->appendChild($mapper->toXmlElement($this->dom, $obj));
+
+            $this->xmlnsDeclaraciones[$mapper->namespacePrefix()] = $mapper->namespaceUri();
+            $this->schemaLocations[] = $mapper->schemaLocation();
         }
+
         return $nodo;
     }
 

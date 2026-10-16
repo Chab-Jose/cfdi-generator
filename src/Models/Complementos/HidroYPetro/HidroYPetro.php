@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Jose\CfdiGenerator\Models\Complementos\HidroYPetro;
+namespace ChabJose\CfdiGenerator\Models\Complementos\HidroYPetro;
 
 use ChabJose\CfdiGenerator\Catalogs\ClaveHYP;
 use ChabJose\CfdiGenerator\Catalogs\SubProductoHYP;
