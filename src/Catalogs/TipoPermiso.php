@@ -6,15 +6,32 @@ namespace ChabJose\CfdiGenerator\Catalogs;
 
 enum TipoPermiso: string
 {
-    case ExpendioEstacionServicioPetroliferos = 'PER01';
-    case Comercializacion = 'PER02';
-    case DistribucionOtrosMediosDistintosADucto = 'PER03';
-    case ExpendioEstacionServicioMultimodal = 'PER04';
-    case ExpendioEstacionServicioPetroliferosCNE = 'PER05';
-    case ComercializacionCNE = 'PER06';
-    case DistribucionOtrosMediosDistintosADuctoCNE = 'PER07';
-    case ExpendioEstacionServicioMultimodalCNE = 'PER08';
-    case ComercializacionCNE2 = 'PER09';
-    case ComercializacionGenerico = 'PER10';
-    case ComercializacionUH = 'PER11';
+    case Per01 = 'PER01';
+    case Per02 = 'PER02';
+    case Per03 = 'PER03';
+    case Per04 = 'PER04';
+    case Per05 = 'PER05';
+    case Per06 = 'PER06';
+    case Per07 = 'PER07';
+    case Per08 = 'PER08';
+    case Per09 = 'PER09';
+    case Per10 = 'PER10';
+    case Per11 = 'PER11';
+
+    public function descripcion(): string
+    {
+        return match ($this) {
+            self::Per01 => 'Expendio en estaciones de servicio de petrolíferos',
+            self::Per02 => 'Comercialización',
+            self::Per03 => 'Distribución por otros medios distintos a ducto',
+            self::Per04 => 'Expendio en estaciones de servicio multimodal de petrolíferos',
+            self::Per05 => 'Expendio en estaciones de servicio de petrolíferos',
+            self::Per06 => 'Comercialización',
+            self::Per07 => 'Distribución por otros medios distintos a ducto',
+            self::Per08 => 'Expendio en estaciones de servicio multimodal de petrolíferos',
+            self::Per09 => 'Comercialización',
+            self::Per10 => 'Comercialización',
+            self::Per11 => 'Comercialización',
+        };
+    }
 }
