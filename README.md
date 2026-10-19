@@ -24,6 +24,7 @@ sellar comprobantes fiscales conforme al esquema del SAT.
 - ✅ **Complemento de Nómina 1.2**, con cálculo automático de Percepciones/Deducciones/Totales, incluyendo la regla oficial de exclusión mutua entre Sueldos y Jubilación/Pensión/Retiro
 - ✅ **Complemento de Carta Porte 3.1**, soportando los 4 medios de transporte (Autotransporte, Marítimo, Aéreo, Ferroviario) como complemento opcional y acoplable sobre un CFDI de Ingreso/Traslado, con generación automática de `IdCCP` y cálculo de `PesoBrutoTotal`/`NumTotalMercancias`/`TotalDistRec`
 - ✅ **Complemento de Hidrocarburos y Petrolíferos (HidroYPetro) 1.0**, a nivel Concepto, con validación contra los catálogos oficiales del SAT (permisos, claves y subproductos)
+- ✅ **Complemento de Instituciones Educativas Privadas (IEDU) 1.0**, a nivel Concepto, con validación de CURP, nivel educativo y RFC de quien paga
 - ✅ Arquitectura extensible: cada pieza (cálculo, mapeo, sellado, validación) es sustituible vía contratos, y nuevos complementos, tanto de Comprobante como de Concepto, se agregan sin modificar el core (`ComplementoRegistry` para mapeo XML, `ComplementoBuilderRegistry` y `ComplementoConceptoBuilderRegistry` para cálculo y validación)
 - ✅ **Catálogos del SAT** (`RegimenFiscal`, `UsoCfdi`, `FormaPago`, `MetodoPago`, `TipoDeComprobante`, `Impuesto`, `TipoFactor`, `ObjetoImp`, `Exportacion`) como enums nativos de PHP, opcionales — con autocompletado en el IDE, sin bloquear el uso del código crudo del SAT
 - ✅ Cobertura de tests amplia, incluyendo verificación criptográfica real del sello
@@ -392,6 +393,43 @@ automáticamente en la raíz del comprobante.
 > ℹ️ El SAT todavía no lo soporta en su portal de facturación gratuito; este
 > paquete lo genera conforme al XSLT y a los catálogos oficiales publicados.
 
+## Complemento IEDU 1.0 (Instituciones Educativas Privadas)
+
+Igual que HidroYPetro, IEDU vive **dentro del Concepto**
+(`cfdi:Concepto/cfdi:ComplementoConcepto`). Lo usan las instituciones
+educativas privadas para expedir comprobantes por servicios educativos,
+indicando el alumno al que corresponde el pago:
+
+```php
+use ChabJose\CfdiGenerator\Catalogs\NivelEducativo;
+use ChabJose\CfdiGenerator\Models\Complementos\Iedu\InstEducativas;
+
+$concepto->addComplementoConcepto(new InstEducativas(
+    nombreAlumno: 'JUAN PEREZ LOPEZ',
+    CURP: 'GOMC800101HDFRRL09',
+    nivelEducativo: NivelEducativo::Primaria,
+    autRVOE: '1234567890',
+    rfcPago: 'XAXX010101000',   // opcional: solo si paga alguien distinto al alumno
+));
+```
+
+`nivelEducativo` también acepta el texto tal como lo publica el SAT
+(`'Primaria'`, `'Profesional técnico'`, etc.). Al construir el comprobante,
+el paquete valida:
+
+- `CURP` con el formato oficial de 18 caracteres
+- `nivelEducativo` dentro de los 5 valores permitidos
+- `nombreAlumno` y `autRVOE` no vacíos
+- `rfcPago`, si se indica, con formato de RFC de 12 o 13 caracteres
+
+Si alguna regla falla se lanza `IeduValidationException`. Las propiedades
+llevan los mismos nombres que el esquema oficial (`nombreAlumno`, `CURP`,
+`autRVOE`, `rfcPago`).
+
+> ℹ️ La validación cubre lo que definen el XSD y el XSLT oficiales del
+> complemento. Las reglas de la guía de llenado que dependen del resto del
+> comprobante no están incluidas.
+
 ## Catálogos del SAT
 
 El paquete incluye como enums nativos de PHP (`enum ... : string`) los
@@ -401,7 +439,7 @@ con poca frecuencia:
 
 `RegimenFiscal`, `UsoCfdi`, `FormaPago`, `MetodoPago`, `TipoDeComprobante`,
 `Impuesto`, `TipoFactor`, `ObjetoImp`, `Exportacion`, y los del complemento
-HidroYPetro (`TipoPermiso`, `ClaveHYP`, `SubProductoHYP`) — namespace
+HidroYPetro (`TipoPermiso`, `ClaveHYP`, `SubProductoHYP`) e IEDU (`NivelEducativo`) — namespace
 `ChabJose\CfdiGenerator\Catalogs`.
 
 > ℹ️ **Por qué no catálogos grandes** (`c_ClaveProdServ` ~52,000 claves,
@@ -442,7 +480,7 @@ Este paquete cubre la **generación y sellado** de CFDI 4.0. Explícitamente
 | Fuera de alcance | Por qué |
 |---|---|
 | Timbrado (conexión a PAC) | Cada PAC tiene su propia API; conecta el tuyo implementando tu propio cliente sobre el XML que este paquete genera |
-| Otros complementos (INE, IEDU, Comercio Exterior) | Roadmap futuro — ver [Roadmap](#roadmap) |
+| Otros complementos (INE, Comercio Exterior, Donatarias) | Roadmap futuro — ver [Roadmap](#roadmap) |
 | Representación impresa (PDF) | Fuera del alcance de esta versión |
 
 ## Arquitectura
@@ -486,10 +524,12 @@ Despacho de complementos (multi-complemento, opcional por comprobante):
 
 Despacho de complementos de Concepto (mismo patrón, instancias propias):
     ├── ComplementoRegistry (de concepto)       → despacha a su XmlMapper
-    │     └── HidroYPetroXmlMapper              → hidrocarburospetroliferos:HidroYPetro
+    │     ├── HidroYPetroXmlMapper              → hidrocarburospetroliferos:HidroYPetro
+    │     └── InstEducativasXmlMapper           → iedu:instEducativas
     └── ComplementoConceptoBuilderRegistry      → despacha a su Builder, con el
           │                                       Concepto y el Comprobante como contexto
-          └── HidroYPetroComplementoBuilderAdapter → HidroYPetroValidator (HidroYPetroMatriz)
+          ├── HidroYPetroComplementoBuilderAdapter → HidroYPetroValidator (HidroYPetroMatriz)
+          └── InstEducativasComplementoBuilderAdapter → InstEducativasValidator
 
 XmlMapper          → Comprobante (modelo) → XML
 CadenaOriginalService → XML → Cadena Original (XSLT oficial SAT)
@@ -520,7 +560,7 @@ instrucciones de cómo obtener un CSD de pruebas.
 
 ## Roadmap
 
-- [ ] Complementos adicionales (INE, IEDU, Comercio Exterior, Donatarias)
+- [ ] Complementos adicionales (INE, Comercio Exterior, Donatarias)
 - [ ] Contrato `TimbradoInterface` (opcional, sin implementación propia)
 - [ ] Representación impresa (PDF)
 

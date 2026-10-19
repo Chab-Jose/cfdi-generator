@@ -5,6 +5,37 @@ Todos los cambios notables de este paquete se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.6.0] - 2026-10-19
+
+### Agregado
+- Complemento de Instituciones Educativas Privadas (IEDU) 1.0, el segundo
+  complemento a nivel Concepto del paquete, construido sobre la
+  infraestructura de `ComplementoConcepto` sin modificarla:
+  - Modelo `InstEducativas` (`nombreAlumno`, `CURP`, `nivelEducativo`,
+    `autRVOE`, `rfcPago` opcional, `version` fija `1.0`), con propiedades
+    nombradas igual que en el XSD oficial `iedu.xsd`
+  - Enum `NivelEducativo` (namespace `Catalogs/`), que refleja la
+    enumeración del XSD: Preescolar, Primaria, Secundaria, Profesional
+    técnico y Bachillerato o su equivalente
+  - `InstEducativasValidator` y `IeduValidationException`: validan `version`,
+    `nombreAlumno` y `autRVOE` no vacíos, `CURP` según `tCURP`,
+    `nivelEducativo` dentro de la enumeración y `rfcPago` según `tRFC`
+    (12 o 13 caracteres)
+  - `InstEducativasXmlMapper` (mapeo a `iedu:instEducativas`) y
+    `InstEducativasComplementoBuilderAdapter`
+
+### Corregido
+- `HidroYPetroMatriz::numeroPermisoValido()` aceptaba un `NumeroPermiso` con
+  salto de línea al final; el regex ahora usa el modificador `D`
+
+### Notas
+- La validación cubre únicamente lo que definen el XSD y el XSLT oficiales;
+  las reglas cruzadas de la guía de llenado (por ejemplo, la
+  `ClaveProdServ` del Concepto) no están incluidas
+- En los patrones `tCURP` y `tRFC` del XSD, las clases de caracteres llevan
+  comas literales (`[A,E,I,O,U,X]`); el paquete las omite, ya que ninguna
+  CURP o RFC real las contiene
+
 ## [1.5.0] - 2026-10-16
 
 ### Agregado
@@ -244,6 +275,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - Complementos del SAT (Nómina, Pagos, Carta Porte, INE, IEDU, Comercio Exterior)
 - Representación impresa (PDF)
 
+[1.6.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.6.0
 [1.5.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.5.0
 [1.4.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.4.0
 [1.2.0]: https://github.com/Chab-Jose/cfdi-generator/releases/tag/v1.2.0
