@@ -45,7 +45,7 @@ final class HidroYPetroMatriz
             return false;
         }
 
-        return preg_match('~^' . $patron . '$~', $numeroPermiso) === 1;
+        return preg_match('~^' . $patron . '$~D', $numeroPermiso) === 1;
     }
 
     public static function subProductosValidosPara(string $claveHYP): array
