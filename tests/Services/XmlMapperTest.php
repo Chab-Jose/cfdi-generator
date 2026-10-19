@@ -5,15 +5,18 @@ declare(strict_types=1);
 namespace ChabJose\CfdiGenerator\Tests\Services;
 
 use ChabJose\CfdiGenerator\Catalogs\ClaveHYP;
+use ChabJose\CfdiGenerator\Catalogs\NivelEducativo;
 use ChabJose\CfdiGenerator\Catalogs\SubProductoHYP;
 use ChabJose\CfdiGenerator\Catalogs\TipoPermiso;
 use ChabJose\CfdiGenerator\Models\Complementos\HidroYPetro\HidroYPetro;
+use ChabJose\CfdiGenerator\Models\Complementos\Iedu\InstEducativas;
 use ChabJose\CfdiGenerator\Models\Comprobante;
 use ChabJose\CfdiGenerator\Models\ComprobanteConcepto;
 use ChabJose\CfdiGenerator\Models\ComprobanteEmisor;
 use ChabJose\CfdiGenerator\Models\ComprobanteReceptor;
 use ChabJose\CfdiGenerator\Services\Complementos\ComplementoRegistry;
 use ChabJose\CfdiGenerator\Services\Complementos\HidroYPetro\HidroYPetroXmlMapper;
+use ChabJose\CfdiGenerator\Services\Complementos\Iedu\InstEducativasXmlMapper;
 use ChabJose\CfdiGenerator\Services\XmlMapper;
 use PHPUnit\Framework\TestCase;
 
@@ -312,6 +315,30 @@ class XmlMapperTest extends TestCase
 
         // $this->mapper se creó sin registry de concepto
         $this->mapper->toXml($comprobante);
+    }
+
+    public function testMapeaComplementoConceptoIedu(): void
+    {
+        $registryConcepto = (new ComplementoRegistry())->registrar(new InstEducativasXmlMapper());
+        $mapper = new XmlMapper(new ComplementoRegistry(), $registryConcepto);
+
+        $concepto = $this->conceptoSimple('86121500', 'Colegiatura');
+        $concepto->addComplementoConcepto(new InstEducativas(
+            'JUAN PEREZ LOPEZ',
+            'GOMC800101HDFRRL09',
+            NivelEducativo::Primaria,
+            '1234567890',
+        ));
+        $comprobante = $this->comprobanteMinimo();
+        $comprobante->Conceptos = [$concepto];
+
+        $xpath = $this->xpathDe($mapper->toXml($comprobante));
+        $ruta = '//cfdi:Concepto/cfdi:ComplementoConcepto/iedu:instEducativas';
+
+        $this->assertSame(1, $xpath->query($ruta)->length);
+        $this->assertSame('1.0', $this->atributo($xpath, $ruta, 'version'));
+        $this->assertSame('Primaria', $this->atributo($xpath, $ruta, 'nivelEducativo'));
+        $this->assertFalse($xpath->query($ruta)->item(0)->hasAttribute('rfcPago'));
     }
 
     // --- Helpers ---

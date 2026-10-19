@@ -88,8 +88,9 @@ class SelladorTest extends TestCase
         $this->assertNotSame($selloUno, $selloDos);
     }
 
+
     private function password(): string
-{
-    return getenv('CSD_PASSWORD') ?: '12345678a';
-}
+    {
+        return getenv('CSD_PASSWORD') ?: '12345678a';
+    }
 }
