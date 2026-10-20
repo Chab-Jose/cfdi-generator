@@ -28,6 +28,8 @@ use ChabJose\CfdiGenerator\Services\Complementos\ComplementoConceptoBuilderRegis
 use ChabJose\CfdiGenerator\Services\Complementos\ComplementoRegistry;
 use ChabJose\CfdiGenerator\Services\Complementos\HidroYPetro\HidroYPetroComplementoBuilderAdapter;
 use ChabJose\CfdiGenerator\Services\Complementos\HidroYPetro\HidroYPetroXmlMapper;
+use ChabJose\CfdiGenerator\Services\Complementos\Iedu\InstEducativasComplementoBuilderAdapter;
+use ChabJose\CfdiGenerator\Services\Complementos\Iedu\InstEducativasXmlMapper;
 use ChabJose\CfdiGenerator\Services\ComprobanteBuilder;
 use ChabJose\CfdiGenerator\Services\ComprobanteImpuestosCalculator;
 use ChabJose\CfdiGenerator\Services\ComprobanteTotalesCalculator;
@@ -127,9 +129,11 @@ class CfdiGenerator extends AbstractCfdiGenerator
 
         $registryConcepto = new ComplementoRegistry();
         $registryConcepto->registrar(new HidroYPetroXmlMapper());
+        $registryConcepto->registrar(new InstEducativasXmlMapper());
 
         $builderRegistryConcepto = new ComplementoConceptoBuilderRegistry();
         $builderRegistryConcepto->registrar(new HidroYPetroComplementoBuilderAdapter());
+        $builderRegistryConcepto->registrar(new InstEducativasComplementoBuilderAdapter());
 
         $comprobanteBuilder = new ComprobanteBuilder(
             new ConceptoImpuestosCalculator($factorResolver),
